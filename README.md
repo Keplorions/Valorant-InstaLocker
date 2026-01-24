@@ -1,4 +1,4 @@
-# VALO LOCKER PRO �️✨
+# VALO LOCKER PRO 🛡️✨ [v44.90]
 
 **Valo Locker PRO** is an elite, tactical dashboard designed for Valorant players who want to gain match intelligence and automate their agent selection process with style.
 
@@ -7,6 +7,9 @@
 ## 🇹🇷 Türkçe Tanıtım
 
 Valo Locker PRO, Valorant oyuncuları için geliştirilmiş, üst düzey estetik ve fonksiyonelliği bir araya getiren bir taktiksel paneldir.
+
+### 📸 Showcase / Görünüm
+![Dashboard Preview](media/dashboard.png)
 
 ### 🚀 Özellikler
 - **Otomatik Ajan Kilitleme**: İstediğiniz ajanı saniyeler içinde otomatik olarak kilitler.
@@ -24,6 +27,9 @@ Bu projenin en benzersiz özelliği, arayüz tasarımından animasyonlarına, ma
 ## 🇺🇸 English Description
 
 Valo Locker PRO is a high-end tactical dashboard for Valorant, combining premium aesthetics with powerful match intelligence tools.
+
+### 📸 Showcase / Preview
+![Dashboard Preview](media/dashboard.png)
 
 ### 🚀 Features
 - **Auto Insta-Lock**: Automatically locks your preferred agent in milliseconds.
@@ -56,4 +62,5 @@ The most unique aspect of this project is that **100% of it**—including the UI
 ## ⚖️ License
 This project is open-source and developed for educational transparency. Use responsibly.
 
+---
 **Developed by By'KeplerB & AI** 🛡️🚀🚩
