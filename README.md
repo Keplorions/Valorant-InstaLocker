@@ -1,12 +1,12 @@
-# VALO LOCKER PRO 🛡️✨ [v44.90]
+# VALORANT INSTALOCKER PRO 🛡️✨ [v44.91]
 
-**Valo Locker PRO** is an elite, tactical dashboard designed for Valorant players who want to gain match intelligence and automate their agent selection process with style.
+**Valorant InstaLocker PRO** is an elite, tactical dashboard designed for Valorant players who want to gain match intelligence and automate their agent selection process with style.
 
 ---
 
 ## 🇹🇷 Türkçe Tanıtım
 
-Valo Locker PRO, Valorant oyuncuları için geliştirilmiş, üst düzey estetik ve fonksiyonelliği bir araya getiren bir taktiksel paneldir.
+Valorant InstaLocker PRO, Valorant oyuncuları için geliştirilmiş, üst düzey estetik ve fonksiyonelliği bir araya getiren bir taktiksel paneldir.
 
 ### 📸 Showcase / Görünüm
 ![Dashboard Preview](media/dashboard.png)
@@ -26,7 +26,7 @@ Bu projenin en benzersiz özelliği, arayüz tasarımından animasyonlarına, ma
 
 ## 🇺🇸 English Description
 
-Valo Locker PRO is a high-end tactical dashboard for Valorant, combining premium aesthetics with powerful match intelligence tools.
+Valorant InstaLocker PRO is a high-end tactical dashboard for Valorant, combining premium aesthetics with powerful match intelligence tools.
 
 ### 📸 Showcase / Preview
 ![Dashboard Preview](media/dashboard.png)
@@ -47,7 +47,7 @@ The most unique aspect of this project is that **100% of it**—including the UI
 ## 🛠️ Installation / Kurulum
 
 1. Install Python 3.x
-2. Clone the repository: `git clone https://github.com/USER/repo-name.git`
+2. Clone the repository: `git clone https://github.com/Keplorions/Valorant-InstaLocker.git`
 3. Install dependencies:
    ```bash
    pip install -r requirements.txt
