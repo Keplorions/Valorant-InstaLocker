@@ -1,10 +1,12 @@
 <div align="center">
 
-# VALORANT INSTALOCKER PRO 🛡️✨
+# VALocker | VALORANT Agent Locker ✨ [v44.93]
 **ELITE TACTICAL DASHBOARD // BY'KEPLERB**
 
 ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-![Release](https://img.shields.io/badge/release-v44.92-blue?style=for-the-badge)
+![Release](https://img.shields.io/badge/release-v44.93-blue?style=for-the-badge)
+![Downloads](https://img.shields.io/badge/downloads-1.3k-orange?style=for-the-badge)
+![Support](https://img.shields.io/badge/Support_me_on-Ko--fi-blue?style=for-the-badge&logo=ko-fi)
 ![Platform](https://img.shields.io/badge/platform-Windows-0078d7?style=for-the-badge&logo=windows)
 ![AI Powered](https://img.shields.io/badge/AI-DEVELOPED-red?style=for-the-badge)
 
