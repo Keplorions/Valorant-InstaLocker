@@ -1,66 +1,76 @@
-# VALORANT INSTALOCKER PRO 🛡️✨ [v44.91]
+<div align="center">
 
-**Valorant InstaLocker PRO** is an elite, tactical dashboard designed for Valorant players who want to gain match intelligence and automate their agent selection process with style.
+# VALORANT INSTALOCKER PRO 🛡️✨
+**ELITE TACTICAL DASHBOARD // BY'KEPLERB**
+
+![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
+![Release](https://img.shields.io/badge/release-v44.92-blue?style=for-the-badge)
+![Platform](https://img.shields.io/badge/platform-Windows-0078d7?style=for-the-badge&logo=windows)
+![AI Powered](https://img.shields.io/badge/AI-DEVELOPED-red?style=for-the-badge)
 
 ---
 
-## 🇹🇷 Türkçe Tanıtım
-
-Valorant InstaLocker PRO, Valorant oyuncuları için geliştirilmiş, üst düzey estetik ve fonksiyonelliği bir araya getiren bir taktiksel paneldir.
-
-### 📸 Showcase / Görünüm
+### 📸 PROJECT SHOWCASE
 ![Dashboard Preview](media/dashboard.png)
 
-### 🚀 Özellikler
-- **Otomatik Ajan Kilitleme**: İstediğiniz ajanı saniyeler içinde otomatik olarak kilitler.
-- **Gerçek Zamanlı İstihbarat**: Maçtaki tüm oyuncuların rütbelerini (Rank), KP puanlarını ve seviyelerini anlık olarak gösterir.
-- **Derin Skin Analizi**: Takım arkadaşlarınızın ve rakiplerinizin envanterindeki skinleri (Vandal, Phantom, vb.) otomatik tarar.
-- **Parti Tespiti**: Kimlerin birlikte (pre-made) girdiğini akıllı algoritmasıyla saptar.
-- **Anti-AFK Sistemi**: Oyun içinde AFK kalmanızı engelleyen pro-aktif hareket mekanizması.
-- **Premium Arayüz**: Glassmorphism tasarımı ve modern animasyonlarla donatılmış elit dashboard.
+</div>
+
+---
+
+## 🇺🇸 English Documentation
+
+**Valorant InstaLocker PRO** is an elite, tactical dashboard designed for high-performance players who want to gain match intelligence and automate their agent selection process with precision and style.
+
+### 🚀 Key Features
+- **Auto Insta-Lock**: Automatically locks your chosen agent in milliseconds.
+- **Real-Time Intelligence**: Instantly displays Ranks, KP, and Levels of all players.
+- **Inventory Scanner**: Scans weapon skins (Vandal, Phantom, Melee) of everyone in the lobby.
+- **Party Detection**: Smart algorithms to detect premade groups and stacks.
+- **Anti-AFK Engine**: Pro-active movement mechanism to prevent inactivity kicks.
+- **Premium UI**: High-end Glassmorphism design with professional SFX-inspired visuals.
+
+### 🤖 The AI Paradigm
+This project is a technical showcase of human-AI collaboration. **100% of the architecture**, including the UI/UX design, core logic, and animations, was generated and optimized using **Advanced Agentic Artificial Intelligence**.
+
+---
+
+## 🇹🇷 Türkçe Dokümantasyon
+
+**Valorant InstaLocker PRO**, maç istihbaratını anında elde etmek ve ajan seçimini profesyonel bir şekilde otomatize etmek isteyen oyuncular için tasarlanmış elit bir taktiksel paneldir.
+
+### 🚀 Öne Çıkan Özellikler
+- **Otomatik Ajan Kilitleme**: İstediğiniz ajanı milisaniyeler içinde kilitler.
+- **Gerçek Zamanlı İstihbarat**: Tüm oyuncuların rütbelerini, KP puanlarını ve seviyelerini anlık gösterir.
+- **Envanter Tarayıcı**: Lobideki herkesin silah skinlerini (Bıçak, Vandal, vb.) otomatik analiz eder.
+- **Parti Tespiti**: Akıllı algoritmasıyla kimlerin grup olarak girdiğini saptar.
+- **Anti-AFK Sistemi**: AFK kalmanızı engelleyen pro-aktif hareket mekanizması.
+- **Elit Arayüz**: Modern Glassmorphism tasarımı ve Valorant estetiği ile optimize edilmiş dashboard.
 
 ### 🤖 Yapay Zeka Hikayesi
-Bu projenin en benzersiz özelliği, arayüz tasarımından animasyonlarına, mantık yapısından dokümantasyonuna kadar **TAMAMININ Gelişmiş Yapay Zeka** kullanılarak oluşturulmuş olmasıdır. Bu, insan-yapay zeka işbirliğinin ulaştığı noktayı temsil eden bir teknoloji gösterisidir.
+Bu proje, insan vizyonu ve yapay zeka gücünün birleştiği bir teknoloji gösterisidir. Arayüz tasarımından çekirdek kod yapısına kadar **TAMAMI** Gelişmiş Yapay Zeka kullanılarak inşa edilmiştir.
 
 ---
 
-## 🇺🇸 English Description
+## 🛠️ Setup / Kurulum
 
-Valorant InstaLocker PRO is a high-end tactical dashboard for Valorant, combining premium aesthetics with powerful match intelligence tools.
-
-### 📸 Showcase / Preview
-![Dashboard Preview](media/dashboard.png)
-
-### 🚀 Features
-- **Auto Insta-Lock**: Automatically locks your preferred agent in milliseconds.
-- **Real-Time Intelligence**: Displays ranks, KP, and levels of all players in the match instantly.
-- **Deep Skin Analysis**: Automatically scans the weapon skins (Vandal, Phantom, etc.) of allies and enemies.
-- **Party Detection**: Identifies premade groups using smart tracking logic.
-- **Anti-AFK System**: Pro-active movement mechanism to prevent being kicked for inactivity.
-- **Premium UI**: Elite dashboard featuring high-end Glassmorphism and modern animations.
-
-### 🤖 The AI Story
-The most unique aspect of this project is that **100% of it**—including the UI design, logic, animations, and documentation—was created using **Advanced Artificial Intelligence**. It stands as a testament to the power of modern AI-human collaboration.
-
----
-
-## 🛠️ Installation / Kurulum
-
-1. Install Python 3.x
-2. Clone the repository: `git clone https://github.com/Keplorions/Valorant-InstaLocker.git`
-3. Install dependencies:
+1. **Prerequisites**: Install [Python 3.10+](https://www.python.org/downloads/)
+2. **Clone**: `git clone https://github.com/Keplorions/Valorant-InstaLocker.git`
+3. **Install Packages**:
    ```bash
    pip install -r requirements.txt
    ```
-4. Run the application:
+4. **Launch**:
    ```bash
    python locker.py
+   # OR use the Batch script
+   Start.bat
    ```
 
 ---
 
-## ⚖️ License
-This project is open-source and developed for educational transparency. Use responsibly.
+## ⚖️ License & Disclaimer
+This project is released under the **MIT License**. **Valo Locker PRO** is an open-source tool developed for educational transparency and technical research. Use responsibly.
 
----
-**Developed by By'KeplerB & AI** 🛡️🚀🚩
+<div align="center">
+**Developed with ❤️ by By'KeplerB & AI** 🛡️🚀🚩
+</div>
