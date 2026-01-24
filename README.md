@@ -1,6 +1,6 @@
 <div align="center">
 
-# VALocker | VALORANT Agent Locker ✨ [v44.97]
+# VALocker | VALORANT Agent Locker ✨ [v44.98]
 **ELITE TACTICAL DASHBOARD // BY'KEPLERB**
 
 [![License](https://img.shields.io/badge/license-MIT-4bc51d?style=flat-square)](LICENSE)
@@ -27,6 +27,12 @@
 - **Anti-AFK Engine**: Pro-active movement mechanism to prevent inactivity kicks.
 - **Premium UI**: High-end Glassmorphism design with professional SFX-inspired visuals.
 
+### 🛡️ Safe to Use?
+This tool interacts with the **Official Valorant Client API**. It does **not** inject code, modify game files, or use pixel-based automation.
+- **Protocol**: Uses standard HTTPS requests (similar to Blitz, Tracker.gg).
+- **Security**: Designed to be as passive as possible to stay within "Safe Tool" boundaries.
+- **Disclaimer**: While highly technical and designed for safety, the use of any third-party tool is at your own risk.
+
 ### 🤖 The AI Paradigm
 This project is a technical showcase of human-AI collaboration. **100% of the architecture**, including the UI/UX design, core logic, and animations, was generated and optimized using **Advanced Agentic Artificial Intelligence**.
 
@@ -43,6 +49,12 @@ This project is a technical showcase of human-AI collaboration. **100% of the ar
 - **Parti Tespiti**: Akıllı algoritmasıyla kimlerin grup olarak girdiğini saptar.
 - **Anti-AFK Sistemi**: AFK kalmanızı engelleyen pro-aktif hareket mekanizması.
 - **Elit Arayüz**: Modern Glassmorphism tasarımı ve Valorant estetiği ile optimize edilmiş dashboard.
+
+### 🛡️ Ban Riski Var mı?
+Bu araç, **Resmi Valorant İstemci API'si** (Client API) üzerinden veri çeker. Oyun dosyalarına müdahale etmez, kod enjekte etmez veya pixel/mouse makrosu kullanmaz.
+- **Protokol**: Blitz veya Tracker.gg gibi uygulamalarla aynı HTTPS protokolünü kullanır.
+- **Güvenlik**: "Safe Tool" sınırları içerisinde kalacak şekilde, en pasif yöntemi kullanacak şekilde tasarlanmıştır.
+- **Uyarı**: Teknik olarak güvenli tasarlanmış olsa da, herhangi bir üçüncü taraf yazılımı kullanmanın sorumluluğu son kullanıcıya aittir.
 
 ### 🤖 Yapay Zeka Hikayesi
 Bu proje, insan vizyonu ve yapay zeka gücünün birleştiği bir teknoloji gösterisidir. Arayüz tasarımından çekirdek kod yapısına kadar **TAMAMI** Gelişmiş Yapay Zeka kullanılarak inşa edilmiştir.

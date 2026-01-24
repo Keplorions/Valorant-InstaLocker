@@ -601,7 +601,7 @@ WEB_TEMPLATE = """
         <header class="glass-panel">
             <div style="display:flex; align-items:center;">
                 <div>
-                    <h1>VALORANT <span style="color:var(--accent)">INSTALOCKER</span> <span class="version-badge">PREMIUM v44.97</span><div class="info-btn" onclick="toggleModal(true)">?</div></h1>
+                    <h1>VALORANT <span style="color:var(--accent)">INSTALOCKER</span> <span class="version-badge">PREMIUM v44.98</span><div class="info-btn" onclick="toggleModal(true)">?</div></h1>
                     <div style="font-size:1em; color:#888; margin-top:5px; font-family:'Rajdhani', sans-serif; font-weight:600; letter-spacing:1px; display:flex; align-items:center; gap:12px;">
                         DARKSIDE ELITE GAMING DASHBOARD
                         <span style="width:4px; height:4px; background:rgba(255,255,255,0.1); border-radius:50%;"></span>
@@ -2676,7 +2676,7 @@ def run_web_mode():
     status_table.add_row("DURUM", "[green]AKTİF[/green]")
     status_table.add_row("ADRES", "[underline]http://127.0.0.1:5000[/underline]")
     status_table.add_row("VERİ", f"{len(SKIN_CACHE)} Skin | {len(AGENT_ASSETS)} Ajan")
-    status_table.add_row("SÜRÜM", "PRO v44.97 Stable")
+    status_table.add_row("SÜRÜM", "PRO v44.98 Stable")
     
     console.print(Align.center(Panel(status_table, title="[bold white]SİSTEM BİLGİSİ[/bold white]", border_style="bright_black", expand=False)))
     console.print(Align.center("[dim italic]Tarayıcı otomatik açılıyor, Valorant bekleniyor...[/dim italic]\n"))
