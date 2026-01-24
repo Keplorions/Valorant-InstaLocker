@@ -1,12 +1,13 @@
 <div align="center">
 
-# VALocker | VALORANT Agent Locker ✨ [v44.95]
+# VALocker | VALORANT Agent Locker ✨ [v44.96]
 **ELITE TACTICAL DASHBOARD // BY'KEPLERB**
 
 [![License](https://img.shields.io/badge/license-MIT-4bc51d?style=flat-square)](LICENSE)
 [![Release](https://img.shields.io/github/v/release/Keplorions/Valorant-InstaLocker?style=flat-square&color=007ec6&label=release)](https://github.com/Keplorions/Valorant-InstaLocker/releases)
 [![Stars](https://img.shields.io/github/stars/Keplorions/Valorant-InstaLocker?style=flat-square&color=dfb317)](https://github.com/Keplorions/Valorant-InstaLocker/stargazers)
-[![Downloads](https://img.shields.io/github/downloads/Keplorions/Valorant-InstaLocker/total?style=flat-square&color=dfb317)](https://github.com/Keplorions/Valorant-InstaLocker/releases)
+[![Downloads](https://img.shields.io/github/downloads/Keplorions/Valorant-InstaLocker/total?style=flat-square&color=dfb317&label=downloads)](https://github.com/Keplorions/Valorant-InstaLocker/releases)
+[![DownloadsLatest](https://img.shields.io/github/downloads/Keplorions/Valorant-InstaLocker/latest/total?style=flat-square&color=dfb317&label=downloads@latest)](https://github.com/Keplorions/Valorant-InstaLocker/releases)
 
 ---
 
