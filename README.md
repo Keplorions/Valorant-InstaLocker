@@ -1,14 +1,13 @@
 <div align="center">
 
-# VALocker | VALORANT Agent Locker ✨ [v44.93]
+# VALocker | VALORANT Agent Locker ✨ [v44.94]
 **ELITE TACTICAL DASHBOARD // BY'KEPLERB**
 
-![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-![Release](https://img.shields.io/badge/release-v44.93-blue?style=for-the-badge)
-![Downloads](https://img.shields.io/badge/downloads-1.3k-orange?style=for-the-badge)
-![Support](https://img.shields.io/badge/Support_me_on-Ko--fi-blue?style=for-the-badge&logo=ko-fi)
-![Platform](https://img.shields.io/badge/platform-Windows-0078d7?style=for-the-badge&logo=windows)
-![AI Powered](https://img.shields.io/badge/AI-DEVELOPED-red?style=for-the-badge)
+[![License](https://img.shields.io/badge/license-MIT-4bc51d?style=flat-square)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v44.94-007ec6?style=flat-square)](https://github.com/Keplorions/Valorant-InstaLocker/releases)
+[![Downloads](https://img.shields.io/badge/downloads-1.3k-dfb317?style=flat-square)](https://github.com/Keplorions/Valorant-InstaLocker/stargazers)
+[![DownloadsLatest](https://img.shields.io/badge/downloads@latest-890-dfb317?style=flat-square)](https://github.com/Keplorions/Valorant-InstaLocker/releases)
+[![Support](https://img.shields.io/badge/☕-Support_me_on_Ko--fi-74abed?style=flat-square&logo=ko-fi)](https://ko-fi.com/)
 
 ---
 
