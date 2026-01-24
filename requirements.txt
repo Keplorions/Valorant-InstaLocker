@@ -1,0 +1,5 @@
+flask
+requests
+urllib3
+rich
+pyautogui (if applicable, but mainly core libs)
