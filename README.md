@@ -1,6 +1,6 @@
 <div align="center">
 
-# VALORANT INSTALOCKER PRO 🛡️✨ [v45.00]
+# VALORANT INSTALOCKER PRO 🛡️✨ [v45.01]
 **ELITE TACTICAL DASHBOARD // BY'KEPLERB**
 
 [![License](https://img.shields.io/badge/license-MIT-4bc51d?style=flat-square)](LICENSE)
@@ -12,6 +12,8 @@
 
 ### 📸 PROJECT SHOWCASE
 ![Dashboard Preview](media/dashboard.png)
+
+<!-- SEO Metadata - Valorant Instalocker, Valorant Agent Locker, Valorant Rank Checker, Valorant Skin Scanner, Valorant Party Detector, Auto InstaLock Valorant, Valorant Lobby Stats, Valorant Dashboard -->
 
 </div>
 
