@@ -1,10 +1,10 @@
 <div align="center">
 
-# VALocker | VALORANT Agent Locker ✨ [v44.98]
+# VALocker | VALORANT Agent Locker ✨ [v44.99]
 **ELITE TACTICAL DASHBOARD // BY'KEPLERB**
 
 [![License](https://img.shields.io/badge/license-MIT-4bc51d?style=flat-square)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/Keplorions/Valorant-InstaLocker?style=flat-square&color=dfb317)](https://github.com/Keplorions/Valorant-InstaLocker/stargazers)
+[![Stars](https://img.shields.io/github/stars/Keplorions/Valorant-InstaLocker?style=flat-square&color=dfb317&cacheSeconds=300)](https://github.com/Keplorions/Valorant-InstaLocker/stargazers)
 
 ---
 
