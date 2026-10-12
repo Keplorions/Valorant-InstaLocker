@@ -15,8 +15,85 @@ import ctypes
 import threading
 import webbrowser
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, render_template_string, jsonify, request
+import subprocess
+import atexit
 from ctypes import wintypes
+try:
+    from pypresence import Presence
+    PYPRESENCE_AVAILABLE = True
+except ImportError:
+    PYPRESENCE_AVAILABLE = False
+
+# Stealth / Görünmez Mod Yönetimi (KEPSLOCK Motoru)
+STEALTH_PROCESS = None
+STEALTH_EXE_PATH = None
+
+def start_stealth_engine():
+    """Özel 'KEPSLOCK ACTIVE' stealth motorunu arka planda geçici dosyadan çalıştırır."""
+    global STEALTH_PROCESS, STEALTH_EXE_PATH
+    try:
+        import sys
+        if getattr(sys, 'frozen', False):
+            base_dir = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            
+        dat_path = os.path.join(base_dir, "stealth_engine.dat")
+        if not os.path.exists(dat_path):
+            # Proje ana dizin fallback
+            dat_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stealth_engine.dat")
+
+        if not os.path.exists(dat_path):
+            console.print("[red](!) stealth_engine.dat bulunamadı![/red]")
+            return False
+
+        # Varsa eski açık Riot/Valorant oturumunu sonlandır
+        os.system("taskkill /f /im VALORANT.exe /im VALORANT-Win64-Shipping.exe /im RiotClientServices.exe /im kepslock_core.exe >nul 2>&1")
+        time.sleep(1)
+
+        import tempfile
+        temp_dir = tempfile.gettempdir()
+        STEALTH_EXE_PATH = os.path.join(temp_dir, f"kepslock_core_{os.getpid()}.exe")
+        try:
+            with open(dat_path, "rb") as f_in, open(STEALTH_EXE_PATH, "wb") as f_out:
+                f_out.write(f_in.read())
+        except Exception as write_err:
+            STEALTH_EXE_PATH = os.path.join(temp_dir, f"kepslock_core_{int(time.time())}.exe")
+            with open(dat_path, "rb") as f_in, open(STEALTH_EXE_PATH, "wb") as f_out:
+                f_out.write(f_in.read())
+
+        # Valorant'ı stealth engine üzerinden başlat
+        STEALTH_PROCESS = subprocess.Popen([STEALTH_EXE_PATH, "VALORANT"], creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
+        return True
+    except Exception as e:
+        console.print(f"[red]Görünmez mod motor hatası: {e}[/red]")
+        return False
+
+def stop_stealth_engine():
+    """Çıkışta stealth motorunu ve geçici dosyayı temizler."""
+    global STEALTH_PROCESS, STEALTH_EXE_PATH
+    if STEALTH_PROCESS:
+        try:
+            STEALTH_PROCESS.terminate()
+        except:
+            pass
+        STEALTH_PROCESS = None
+    if STEALTH_EXE_PATH and os.path.exists(STEALTH_EXE_PATH):
+        try:
+            os.remove(STEALTH_EXE_PATH)
+        except:
+            pass
+        STEALTH_EXE_PATH = None
+
+atexit.register(stop_stealth_engine)
+
+# Discord Rich Presence Ayarları
+DISCORD_CLIENT_ID = "1521660514139115610"
+DISCORD_PUBLIC_KEY = "a42114f295f8f986494b0d800164957d8bd755c6e359f8d48593d0c37bdd5cf1"
+DISCORD_RPC = None
+RPC_START_TIME = int(time.time())
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -25,6 +102,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich import box
 from rich.live import Live
 from rich.layout import Layout
+from rich.align import Align
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 console = Console()
@@ -137,6 +215,7 @@ WEB_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VALO LOCKER PRO</title>
+    <link rel="icon" type="image/png" href="data:image/png;base64,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">
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <style>
         :root { 
@@ -193,6 +272,33 @@ WEB_TEMPLATE = """
             background: linear-gradient(90deg, transparent, var(--accent), transparent);
         }
         
+        .header-logo-container {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .header-logo {
+            width: 54px;
+            height: 54px;
+            border-radius: 14px;
+            border: 2px solid rgba(255, 70, 85, 0.4);
+            box-shadow: 0 0 15px rgba(255, 70, 85, 0.25);
+            background: rgba(11, 17, 25, 0.8);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+            object-fit: cover;
+            display: block;
+        }
+        .header-logo:hover {
+            transform: scale(1.08) rotate(-2deg);
+            border-color: var(--accent);
+            box-shadow: 0 0 25px var(--accent-glow);
+        }
+        .header-logo:active {
+            transform: scale(0.95);
+        }
+
         h1 { margin: 0; font-family: 'Rajdhani', sans-serif; font-size: 2.8em; text-transform: uppercase; letter-spacing: 2px; }
         .version-badge { font-size: 0.35em; vertical-align: middle; background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 4px; box-shadow: 0 0 15px var(--accent-glow); margin-left: 10px; }
         
@@ -426,6 +532,16 @@ WEB_TEMPLATE = """
         /* Notifications & Utils */
         .loading-text { font-size: 0.7em; color: #ffb800; font-weight: 800; letter-spacing: 1px; animation: pulse 1.5s infinite; }
         
+        .lock-refresh-note {
+            margin-top: 8px;
+            font-size: 0.78em;
+            color: #7a8b9e;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            white-space: nowrap;
+            letter-spacing: 0.4px;
+        }
+        
         /* Premium Empty State */
         .empty-state-wrapper { 
             display: flex; flex-direction: column; align-items: center; justify-content: center; 
@@ -516,15 +632,171 @@ WEB_TEMPLATE = """
         .info-close:hover { color: var(--accent); transform: rotate(90deg); }
         
         .info-btn { 
-            width: 20px; height: 20px; border-radius: 50%; 
-            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+            width: 26px; height: 26px; border-radius: 50%;
             display: inline-flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: 0.3s; color: #fff; 
-            font-weight: 900; font-size: 13px; margin-left: 8px; vertical-align: middle; 
-            padding: 0; box-sizing: border-box; overflow: hidden;
-            text-indent: 1px; /* Optical nudge for the ? character */
+            background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.12), rgba(20, 26, 36, 0.95));
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            margin-left: 10px;
+            vertical-align: middle;
+            position: relative;
+            outline: none;
+            padding: 0;
+            transition: all 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
-        .info-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.2); box-shadow: 0 0 10px rgba(255,255,255,0.1); }
+        .info-btn::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+            opacity: 0;
+            filter: blur(4px);
+            transition: opacity 0.3s ease;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .info-btn-content {
+            position: relative;
+            z-index: 1;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 14px;
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.82);
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+            transition: color 0.25s ease;
+        }
+        .info-btn:hover {
+            transform: translateY(-2px) scale(1.08);
+            border-color: var(--accent);
+            box-shadow: 0 0 18px rgba(255, 70, 85, 0.5), inset 0 0 8px rgba(255, 70, 85, 0.3);
+        }
+        .info-btn:hover::before {
+            opacity: 0.6;
+        }
+        .info-btn:hover .info-btn-content {
+            color: #fff;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+        }
+        .info-btn:active {
+            transform: translateY(0px) scale(0.96);
+            box-shadow: 0 2px 8px rgba(255, 70, 85, 0.4);
+        }
+
+        /* Tactical Anti-AFK Question Mark Button (High-End Micro-Animation) */
+        @keyframes afkHelpPulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(0, 245, 145, 0.4), inset 0 1px 2px rgba(255, 255, 255, 0.25);
+                border-color: rgba(0, 245, 145, 0.35);
+            }
+            50% {
+                box-shadow: 0 0 12px 2px rgba(0, 245, 145, 0.3), inset 0 1px 4px rgba(0, 245, 145, 0.2);
+                border-color: rgba(0, 245, 145, 0.85);
+            }
+        }
+
+        .afk-help-btn { 
+            width: 22px; height: 22px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.12), rgba(20, 26, 36, 0.95));
+            border: 1px solid rgba(0, 245, 145, 0.35);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            margin-left: 5px;
+            vertical-align: middle;
+            position: relative;
+            outline: none;
+            padding: 0;
+            transition: all 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+            animation: afkHelpPulse 3.5s ease-in-out infinite;
+        }
+        .afk-help-btn::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--success) 0%, transparent 70%);
+            opacity: 0;
+            filter: blur(4px);
+            transition: opacity 0.3s ease;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .afk-help-btn-content {
+            position: relative;
+            z-index: 1;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 13px;
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.85);
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+            transition: color 0.25s ease;
+        }
+        .afk-help-btn:hover {
+            transform: translateY(-2px) scale(1.08);
+            border-color: var(--success);
+            box-shadow: 0 0 18px rgba(0, 245, 145, 0.5), inset 0 0 8px rgba(0, 245, 145, 0.3);
+            animation: none;
+        }
+        .afk-help-btn:hover::before {
+            opacity: 0.6;
+        }
+        .afk-help-btn:hover .afk-help-btn-content {
+            color: #fff;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+        }
+        .afk-help-btn:active {
+            transform: translateY(0px) scale(0.96);
+            box-shadow: 0 2px 8px rgba(0, 245, 145, 0.4);
+        }
+
+        /* Anti-AFK Info Modal */
+        #afk-modal .info-content {
+            max-width: 650px;
+            border: 1px solid rgba(0, 245, 145, 0.3);
+            box-shadow: 0 0 60px rgba(0, 245, 145, 0.15), 0 0 100px rgba(0, 0, 0, 0.9);
+        }
+
+        #afk-modal h2 {
+            color: var(--success);
+            border-bottom: 1px solid rgba(0, 245, 145, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .afk-feature-card {
+            background: rgba(0, 245, 145, 0.03);
+            border: 1px solid rgba(0, 245, 145, 0.12);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+        }
+
+        .afk-feature-card h4 {
+            margin: 0 0 8px 0;
+            color: #00f591;
+            font-size: 1.1em;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .afk-feature-card p {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.88em;
+            line-height: 1.6;
+            color: #bbb;
+        }
 
         /* Signature Animation (v44.61) */
         @keyframes signaturePulse {
@@ -534,6 +806,98 @@ WEB_TEMPLATE = """
         .signature-glow {
             animation: signaturePulse 3s ease-in-out infinite;
             cursor: default;
+        }
+
+        /* Modern Tactical Discord Button (Subtle Pulse Synchronized with BY'KEPLERB) */
+        @keyframes discordPulse {
+            0%, 100% { 
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), 0 0 4px rgba(88, 101, 242, 0.25);
+                border-color: rgba(88, 101, 242, 0.28);
+                opacity: 0.88; 
+            }
+            50% { 
+                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5), 0 0 10px rgba(88, 101, 242, 0.5);
+                border-color: rgba(88, 101, 242, 0.55);
+                opacity: 1; 
+            }
+        }
+        .discord-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 23px; height: 23px; border-radius: 6px;
+            background: linear-gradient(135deg, rgba(88, 101, 242, 0.12) 0%, rgba(15, 20, 28, 0.85) 100%);
+            border: 1px solid rgba(88, 101, 242, 0.3);
+            color: #5865F2; text-decoration: none;
+            cursor: pointer; position: relative;
+            vertical-align: middle;
+            animation: discordPulse 3s ease-in-out infinite;
+            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+            box-sizing: border-box;
+        }
+        .discord-btn svg {
+            width: 13px; height: 13px; fill: currentColor;
+            display: block;
+            transition: transform 0.25s ease;
+        }
+        .discord-btn:hover {
+            color: #fff;
+            background: linear-gradient(135deg, #5865F2 0%, #4752c4 100%);
+            border-color: #7983f5;
+            transform: translateY(-2px) scale(1.08);
+            box-shadow: 0 0 14px rgba(88, 101, 242, 0.6) !important;
+            opacity: 1;
+        }
+        .discord-btn:hover svg {
+            transform: scale(1.1);
+        }
+        .discord-btn:active {
+            transform: translateY(0px) scale(0.96);
+            box-shadow: 0 2px 6px rgba(88, 101, 242, 0.4) !important;
+        }
+
+        /* Modern Tactical GitHub Button */
+        @keyframes githubPulse {
+            0%, 100% { 
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), 0 0 4px rgba(255, 255, 255, 0.15);
+                border-color: rgba(255, 255, 255, 0.2);
+                opacity: 0.88; 
+            }
+            50% { 
+                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5), 0 0 10px rgba(255, 255, 255, 0.35);
+                border-color: rgba(255, 255, 255, 0.45);
+                opacity: 1; 
+            }
+        }
+        .github-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 23px; height: 23px; border-radius: 6px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(15, 20, 28, 0.85) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            color: rgba(255, 255, 255, 0.78); text-decoration: none;
+            cursor: pointer; position: relative;
+            vertical-align: middle;
+            animation: githubPulse 3s ease-in-out infinite;
+            transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+            box-sizing: border-box;
+        }
+        .github-btn svg {
+            width: 13px; height: 13px; fill: currentColor;
+            display: block;
+            transition: transform 0.25s ease;
+        }
+        .github-btn:hover {
+            color: #fff;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(35, 45, 60, 0.95) 100%);
+            border-color: rgba(255, 255, 255, 0.6);
+            transform: translateY(-2px) scale(1.08);
+            box-shadow: 0 0 14px rgba(255, 255, 255, 0.45) !important;
+            opacity: 1;
+        }
+        .github-btn:hover svg {
+            transform: scale(1.1);
+        }
+        .github-btn:active {
+            transform: translateY(0px) scale(0.96);
+            box-shadow: 0 2px 6px rgba(255, 255, 255, 0.3) !important;
         }
 
         /* Red Neon VFX Trail (v44.75) */
@@ -551,7 +915,212 @@ WEB_TEMPLATE = """
             box-shadow: 0 10px 40px rgba(0,0,0,0.5); margin-bottom: 10px; min-width: 300px;
             font-family: 'Rajdhani', sans-serif; animation: slideIn 0.4s ease forwards;
         }
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        /* Player Skins Showcase Modal */
+        .player-skins-modal {
+            display: none; position: fixed; z-index: 2000; left: 0; top: 0;
+            width: 100%; height: 100%; background: rgba(5, 8, 13, 0.85);
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+            align-items: center; justify-content: center;
+            opacity: 0; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none; overscroll-behavior: contain;
+        }
+        .player-skins-modal.is-active {
+            display: flex; opacity: 1; pointer-events: auto;
+        }
+        .skins-modal-box {
+            background: linear-gradient(135deg, rgba(20, 29, 41, 0.98) 0%, rgba(11, 17, 25, 0.99) 100%);
+            width: 95%; max-width: 1100px; max-height: 88vh;
+            border-radius: 20px; border: 1px solid rgba(255, 70, 85, 0.35);
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.8), 0 0 40px rgba(255, 70, 85, 0.15);
+            color: #ece8e1; font-family: 'Rajdhani', sans-serif;
+            position: relative; display: flex; flex-direction: column;
+            overflow: hidden;
+            transform: scale(0.92) translateY(20px);
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .player-skins-modal.is-active .skins-modal-box {
+            transform: scale(1) translateY(0);
+        }
+        .skins-modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 22px 28px; background: rgba(10, 15, 23, 0.7);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            position: relative;
+        }
+        .skins-modal-header::after {
+            content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+        }
+        .modal-player-profile {
+            display: flex; align-items: center; gap: 18px;
+        }
+        .modal-agent-avatar-wrap {
+            position: relative; width: 62px; height: 62px;
+            border-radius: 14px; overflow: hidden;
+            background: rgba(255, 70, 85, 0.1);
+            border: 2px solid rgba(255, 70, 85, 0.4);
+            box-shadow: 0 0 20px rgba(255, 70, 85, 0.25);
+            flex-shrink: 0;
+        }
+        .modal-agent-avatar-wrap img.avatar {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+        .modal-rank-corner {
+            position: absolute; bottom: -2px; right: -2px; width: 26px; height: 26px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+        }
+        .modal-player-meta h2 {
+            margin: 0; font-size: 1.8em; font-weight: 700; letter-spacing: 1.5px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .modal-player-meta h2 span.tag {
+            font-size: 0.65em; color: rgba(255,255,255,0.45); font-weight: 500;
+        }
+        .modal-badges-row {
+            display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap;
+        }
+        .m-badge {
+            font-size: 0.85em; font-weight: 700; padding: 3px 10px; border-radius: 6px;
+            letter-spacing: 0.8px; text-transform: uppercase;
+        }
+        .m-badge-rank { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; }
+        .m-badge-level { background: rgba(0, 245, 145, 0.1); border: 1px solid rgba(0, 245, 145, 0.3); color: var(--success); }
+        .m-badge-premium { background: rgba(255, 177, 0, 0.15); border: 1px solid rgba(255, 177, 0, 0.4); color: #ffb100; box-shadow: 0 0 10px rgba(255, 177, 0, 0.2); }
+        .m-badge-party { background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; }
+
+        .skins-modal-close {
+            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ccc; width: 36px; height: 36px; border-radius: 50%;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 20px; font-weight: 700; transition: 0.25s ease;
+        }
+        .skins-modal-close:hover {
+            background: var(--accent); color: #fff; border-color: var(--accent);
+            transform: rotate(90deg) scale(1.1); box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .skins-modal-tabs {
+            display: flex; gap: 10px; padding: 14px 28px; background: rgba(14, 21, 30, 0.75);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06); overflow-x: auto;
+            scrollbar-width: none; flex-wrap: wrap; align-items: center;
+        }
+        .skins-modal-tabs::-webkit-scrollbar { display: none; }
+        .skin-tab-btn {
+            background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.09);
+            color: #aaa; padding: 8px 18px; border-radius: 8px; cursor: pointer;
+            font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 0.9em;
+            letter-spacing: 1px; transition: 0.2s ease; white-space: nowrap;
+            text-transform: uppercase; display: inline-flex; align-items: center; justify-content: center;
+        }
+        .skin-tab-btn:hover {
+            background: rgba(255, 70, 85, 0.12); color: #fff; border-color: rgba(255, 70, 85, 0.4);
+        }
+        .skin-tab-btn.active {
+            background: var(--accent); color: #fff; border-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .skins-modal-body {
+            padding: 24px 28px; overflow-y: auto; flex: 1;
+            overscroll-behavior: contain; touch-action: pan-y;
+            scrollbar-width: thin; scrollbar-color: rgba(255, 70, 85, 0.3) rgba(0,0,0,0.2);
+        }
+        .skins-modal-body::-webkit-scrollbar { width: 6px; }
+        .skins-modal-body::-webkit-scrollbar-thumb { background: rgba(255, 70, 85, 0.4); border-radius: 4px; }
+
+        .weapon-cards-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+            gap: 16px;
+        }
+        .weapon-card {
+            background: rgba(255, 255, 255, 0.025); border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 14px; padding: 14px 16px; position: relative;
+            display: flex; flex-direction: column; justify-content: space-between;
+            min-height: 145px; transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+        }
+        .weapon-card::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%;
+            background: rgba(255, 255, 255, 0.15); transition: 0.25s ease;
+        }
+        .weapon-card:hover {
+            transform: translateY(-4px); background: rgba(255, 255, 255, 0.05);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+        .weapon-card.is-knife {
+            border-color: rgba(255, 177, 0, 0.4);
+            background: linear-gradient(135deg, rgba(255, 177, 0, 0.06) 0%, rgba(20, 29, 41, 0.4) 100%);
+        }
+        .weapon-card.is-knife::before {
+            background: #ffb100; box-shadow: 0 0 10px #ffb100;
+        }
+        .weapon-card.is-premium {
+            border-color: rgba(0, 245, 145, 0.35);
+            background: linear-gradient(135deg, rgba(0, 245, 145, 0.04) 0%, rgba(20, 29, 41, 0.4) 100%);
+        }
+        .weapon-card.is-premium::before {
+            background: var(--success); box-shadow: 0 0 10px var(--success);
+        }
+        .weapon-card-top {
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .w-name-badge {
+            font-size: 0.85em; font-weight: 700; color: #aaa; letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .w-status-badge {
+            font-size: 0.7em; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+            letter-spacing: 0.6px;
+        }
+        .badge-prem { background: rgba(0, 245, 145, 0.15); color: var(--success); border: 1px solid rgba(0, 245, 145, 0.3); }
+        .badge-knife { background: rgba(255, 177, 0, 0.18); color: #ffb100; border: 1px solid rgba(255, 177, 0, 0.4); }
+        .badge-std { background: rgba(255, 255, 255, 0.05); color: #777; }
+
+        .weapon-card-img-wrap {
+            height: 65px; display: flex; align-items: center; justify-content: center;
+            margin: 10px 0; position: relative;
+        }
+        .weapon-card-img-wrap img {
+            max-width: 90%; max-height: 55px; object-fit: contain;
+            filter: drop-shadow(0 4px 10px rgba(0,0,0,0.6));
+            transition: transform 0.3s ease;
+        }
+        .weapon-card:hover .weapon-card-img-wrap img {
+            transform: scale(1.08);
+        }
+        .weapon-card-bottom {
+            border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 8px;
+        }
+        .skin-title {
+            font-size: 1.05em; font-weight: 700; color: #fff; letter-spacing: 0.8px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .skin-category-sub {
+            font-size: 0.75em; color: rgba(255,255,255,0.4); font-family: 'Inter', sans-serif;
+            margin-top: 2px;
+        }
+
+        /* Player Row Inspect Pill & Hover */
+        .player-row {
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+        .player-row:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 70, 85, 0.45) !important;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 70, 85, 0.15);
+        }
+        .inspect-hint {
+            display: inline-flex; align-items: center; gap: 5px;
+            font-size: 0.7em; font-weight: 700; letter-spacing: 1px;
+            color: rgba(255,255,255,0.4); padding: 3px 8px; border-radius: 4px;
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+            margin-left: 8px; transition: 0.2s ease;
+        }
+        .player-row:hover .inspect-hint {
+            color: #fff; background: rgba(255, 70, 85, 0.2); border-color: rgba(255, 70, 85, 0.4);
+        }
     </style>
 </head>
 <body>
@@ -596,16 +1165,89 @@ WEB_TEMPLATE = """
             </div>
         </div>
     </div>
+
+    <!-- ANTI-AFK EXPLANATION MODAL -->
+    <div id="afk-modal" class="info-modal" onclick="if(event.target == this) toggleAfkModal(false)">
+        <div class="info-content">
+            <div class="info-close" onclick="toggleAfkModal(false)">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </div>
+            <h2>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00f591" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+                <span data-i18n="afk_modal_title">ANTI-AFK SİSTEMİ BİLGİLENDİRMESİ</span>
+            </h2>
+            
+            <div class="afk-feature-card">
+                <h4 data-i18n="afk_card1_title">🛡️ NASIL ÇALIŞIR?</h4>
+                <p data-i18n="afk_card1_desc">Siz bilgisayar başından ayrıldığınızda veya oyunu simge durumuna küçülttüğünüzde, arka planda güvenli Windows API çağrıları üzerinden periyodik ve doğal insan ritminde tuş vuruşları simüle eder. Böylece Valorant'ın AFK / Hareketsizlik ceza sistemine takılmazsınız.</p>
+            </div>
+
+            <div class="afk-feature-card">
+                <h4 data-i18n="afk_card2_title">⚙️ ÖNE ÇIKAN ÖZELLİKLER</h4>
+                <p data-i18n="afk_card2_desc"><strong>• Arka Planda Çalışma:</strong> Oyun odakta olmasa dahi kesintisiz hareket sağlar.<br>
+                <strong>• Akıllı Rastgele Aralıklar:</strong> Robotik tespiti engellemek için tuş basma aralıkları rastgele sürelerle değişkenlik gösterir.<br>
+                <strong>• Düşük Kaynak Tüketimi:</strong> %0 işlemci yükü ile arka planda sessiz çalışır.</p>
+            </div>
+
+            <div class="afk-feature-card" style="margin-bottom:0; border-color:rgba(255,184,0,0.3); background:rgba(255,184,0,0.04);">
+                <h4 style="color:#ffb800;" data-i18n="afk_card3_title">⚠️ KULLANIM TAVSİYESİ</h4>
+                <p data-i18n="afk_card3_desc">Özellikle Ajan Seçim Ekranı beklerken, tur aralarında kısa süreli mola verirken veya ölüm maçı / derecesiz modlarda tuvalet/su molası verirken açmanız önerilir. İhtiyacınız bittiğinde butondan kapatabilirsiniz.</p>
+            </div>
+        </div>
+    </div>
+    <!-- PLAYER WEAPONS & SKINS SHOWCASE MODAL (v45.2) -->
+    <div id="player-skins-modal" class="player-skins-modal" onclick="if(event.target == this) closePlayerModal()">
+        <div class="skins-modal-box">
+            <div class="skins-modal-header">
+                <div class="modal-player-profile">
+                    <div class="modal-agent-avatar-wrap">
+                        <img id="pm-agent-img" class="avatar" src="" alt="Agent">
+                        <img id="pm-rank-img" class="modal-rank-corner" src="" alt="Rank">
+                    </div>
+                    <div class="modal-player-meta">
+                        <h2>
+                            <span id="pm-player-name">Player</span>
+                            <span id="pm-player-tag" class="tag">#TAG</span>
+                        </h2>
+                        <div class="modal-badges-row">
+                            <span class="m-badge m-badge-rank" id="pm-rank-badge">Unranked</span>
+                            <span class="m-badge m-badge-level" id="pm-level-badge">LVL 0</span>
+                            <span class="m-badge m-badge-party" id="pm-party-badge">SOLO</span>
+                            <span class="m-badge m-badge-premium" id="pm-prem-badge">★ 0 ÖZEL SKİN</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="skins-modal-close" onclick="closePlayerModal()" title="Kapat (ESC)">&times;</button>
+            </div>
+
+            <div class="skins-modal-body">
+                <div class="weapon-cards-grid" id="pm-weapons-grid">
+                    <!-- Dinamik olarak silah kartları eklenecek -->
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="container">
         <!-- Header -->
         <header class="glass-panel">
-            <div style="display:flex; align-items:center;">
+            <div class="header-logo-container">
+                <img src="data:image/png;base64,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" alt="KepsLocker Logo" class="header-logo" onclick="window.location.reload()" title="Sayfayı Yenile (F5) / Refresh Page">
                 <div>
-                    <h1>VALORANT <span style="color:var(--accent)">INSTALOCKER</span> <span class="version-badge">PREMIUM v45.01</span><div class="info-btn" onclick="toggleModal(true)">?</div></h1>
-                    <div style="font-size:1em; color:#888; margin-top:5px; font-family:'Rajdhani', sans-serif; font-weight:600; letter-spacing:1px; display:flex; align-items:center; gap:12px;">
+                    <h1>VALORANT <span style="color:var(--accent)">INSTALOCKER</span> <span class="version-badge">PREMIUM v1</span><button type="button" class="info-btn" onclick="toggleModal(true)" title="Proje Bilgisi / Project Information" aria-label="Proje Bilgisi"><span class="info-btn-content">?</span></button></h1>
+                    <div style="font-size:1em; color:#888; margin-top:5px; font-family:'Rajdhani', sans-serif; font-weight:600; letter-spacing:1px; display:flex; align-items:center; gap:10px;">
                         DARKSIDE ELITE GAMING DASHBOARD
                         <span style="width:4px; height:4px; background:rgba(255,255,255,0.1); border-radius:50%;"></span>
                         <span class="signature-glow" style="color:var(--accent); font-weight:800; letter-spacing:2px; font-size:0.9em;">BY'KEPLERB</span>
+                        <a href="https://discord.gg/93DSqGVXa2" target="_blank" rel="noopener noreferrer" class="discord-btn" title="Discord Sunucumuza Katıl" aria-label="Discord">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                            </svg>
+                        </a>
+                        <a href="https://github.com/Keplorions/Valorant-InstaLocker" target="_blank" rel="noopener noreferrer" class="github-btn" title="GitHub Depomuzu Ziyaret Et" aria-label="GitHub">
+                            <svg viewBox="0 0 24 24">
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+                            </svg>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -644,12 +1286,15 @@ WEB_TEMPLATE = """
             <div class="glass-panel">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                     <h2 data-i18n="agent_selection" style="margin:0; font-family:'Rajdhani', sans-serif; text-transform:uppercase; letter-spacing:1px; border-left:4px solid var(--accent); padding-left:12px;">AJAN SEÇİMİ</h2>
-                    <div class="toggle-container" title="Otomatik hareket ederek AFK kalmanı engeller">
-                        <label class="toggle-switch">
+                    <div class="toggle-container">
+                        <div style="display:flex; align-items:center; gap:5px;">
+                            <span style="font-size:0.75em; font-weight:800; color:#aaa; letter-spacing:1px; font-family:'Rajdhani', sans-serif;">ANTI-AFK</span>
+                            <button type="button" class="info-btn" onclick="toggleAfkModal(true)" title="Anti-AFK Nedir? Nasıl Çalışır?" aria-label="Anti-AFK Bilgisi" style="margin-left:0; width:22px; height:22px;"><span class="info-btn-content" style="font-size:12px;">?</span></button>
+                        </div>
+                        <label class="toggle-switch" title="Anti-AFK Aç / Kapat">
                             <input type="checkbox" id="afk-toggle" onchange="toggleAfk(this.checked)">
                             <span class="toggle-slider"></span>
                         </label>
-                        <span style="font-size:0.7em; font-weight:800; color:#888;">ANTI-AFK</span>
                     </div>
                 </div>
                 
@@ -696,6 +1341,107 @@ WEB_TEMPLATE = """
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
+        // Zero-Dependency DOM Helper / jQuery Fallback (Offline / Brave Shields Safe)
+        (function() {
+            if (typeof window.$ === 'undefined' || typeof window.jQuery === 'undefined') {
+                function DomCollection(elements) {
+                    this.elements = elements || [];
+                    this.length = this.elements.length;
+                    for (let i = 0; i < this.elements.length; i++) this[i] = this.elements[i];
+                }
+                DomCollection.prototype = {
+                    each: function(cb) { this.elements.forEach((el, i) => cb.call(el, i, el)); return this; },
+                    text: function(txt) {
+                        if (txt === undefined) return this.elements[0] ? this.elements[0].textContent : '';
+                        this.elements.forEach(el => el.textContent = txt); return this;
+                    },
+                    html: function(h) {
+                        if (h === undefined) return this.elements[0] ? this.elements[0].innerHTML : '';
+                        this.elements.forEach(el => el.innerHTML = h); return this;
+                    },
+                    attr: function(k, v) {
+                        if (v === undefined) return this.elements[0] ? this.elements[0].getAttribute(k) : null;
+                        this.elements.forEach(el => { if (k === 'src') el.src = v; else el.setAttribute(k, v); }); return this;
+                    },
+                    data: function(k) {
+                        return this.elements[0] ? this.elements[0].getAttribute('data-' + k) : undefined;
+                    },
+                    addClass: function(c) { this.elements.forEach(el => el.classList.add(c)); return this; },
+                    removeClass: function(c) { this.elements.forEach(el => el.classList.remove(c)); return this; },
+                    toggleClass: function(c, force) {
+                        this.elements.forEach(el => {
+                            if (force !== undefined) el.classList.toggle(c, force);
+                            else el.classList.toggle(c);
+                        });
+                        return this;
+                    },
+                    css: function(prop, val) {
+                        if (val === undefined) {
+                            if (typeof prop === 'object') {
+                                this.elements.forEach(el => Object.assign(el.style, prop));
+                                return this;
+                            }
+                            return this.elements[0] ? this.elements[0].style[prop] : '';
+                        }
+                        this.elements.forEach(el => el.style[prop] = val);
+                        return this;
+                    },
+                    empty: function() { this.elements.forEach(el => el.innerHTML = ''); return this; },
+                    append: function(content) {
+                        this.elements.forEach(el => {
+                            if (typeof content === 'string') el.insertAdjacentHTML('beforeend', content);
+                            else if (content instanceof DomCollection) content.elements.forEach(c => el.appendChild(c));
+                            else if (content && content.nodeType) el.appendChild(content);
+                        });
+                        return this;
+                    },
+                    show: function() { this.elements.forEach(el => el.style.display = ''); return this; },
+                    hide: function() { this.elements.forEach(el => el.style.display = 'none'); return this; },
+                    on: function(evt, selector, handler) {
+                        if (typeof selector === 'function') {
+                            handler = selector;
+                            this.elements.forEach(el => el.addEventListener(evt, handler));
+                        } else {
+                            this.elements.forEach(el => el.addEventListener(evt, function(e) {
+                                const t = e.target.closest(selector);
+                                if (t && el.contains(t)) handler.call(t, e);
+                            }));
+                        }
+                        return this;
+                    }
+                };
+                window.$ = window.jQuery = function(selector) {
+                    if (!selector) return new DomCollection([]);
+                    if (typeof selector === 'function') {
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', selector);
+                        } else {
+                            selector();
+                        }
+                        return;
+                    }
+                    if (selector === document) return new DomCollection([document]);
+                    if (selector === window) return new DomCollection([window]);
+                    if (selector.nodeType) return new DomCollection([selector]);
+                    if (typeof selector === 'string') {
+                        if (selector.trim().startsWith('<')) {
+                            const temp = document.createElement('div');
+                            temp.innerHTML = selector.trim();
+                            return new DomCollection(Array.from(temp.children));
+                        }
+                        return new DomCollection(Array.from(document.querySelectorAll(selector)));
+                    }
+                    if (Array.isArray(selector) || selector instanceof NodeList || selector instanceof HTMLCollection) {
+                        return new DomCollection(Array.from(selector));
+                    }
+                    return new DomCollection([]);
+                };
+                window.$.get = function(url, cb) {
+                    fetch(url).then(r => r.json()).then(cb).catch(e => console.warn('Fetch error:', e));
+                };
+            }
+        })();
+
         const LANG_DATA = {
             'tr': {
                 'agent_selection': 'AJAN SEÇİMİ',
@@ -714,8 +1460,23 @@ WEB_TEMPLATE = """
                 'conn_error': 'Sistem bağlantı hatası!',
                 'afk_on': 'Anti-AFK Aktif',
                 'afk_off': 'Anti-AFK Kapatıldı',
+                'lock_refresh_note': 'Not: Her oyundan sonra siteyi yenileyiniz (F5 atınız)',
+                'stealth_offline': 'GÖRÜNMEZ MOD',
+                'badge_standard': 'STANDART',
+                'badge_knife': '★ BIÇAK',
+                'badge_premium': '★ ÖZEL SKİN',
+                'special_skins': 'ÖZEL SKİN',
+                'party_group': 'GRUP',
+                'party_solo': 'SOLO',
                 'map': 'HARİTA',
                 'unknown': 'Bilinmiyor',
+                'afk_modal_title': 'ANTI-AFK SİSTEMİ BİLGİLENDİRMESİ',
+                'afk_card1_title': '🛡️ NASIL ÇALIŞIR?',
+                "afk_card1_desc": "Bilgisayar başından ayrıldığınızda veya oyunu simge durumuna küçülttüğünüzde, arka planda güvenli Windows API çağrıları üzerinden periyodik ve doğal insan ritminde tuş vuruşları simüle eder. Böylece Valorant AFK ceza sistemine takılmazsınız.",
+                'afk_card2_title': '⚙️ ÖNE ÇIKAN ÖZELLİKLER',
+                'afk_card2_desc': '• Arka Planda Çalışma: Oyun odakta olmasa dahi kesintisiz hareket sağlar.<br>• Akıllı Rastgele Aralıklar: Robotik tespiti engellemek için tuş basma aralıkları rastgele sürelerle değişkenlik gösterir.<br>• Düşük Kaynak Tüketimi: %0 işlemci yükü ile arka planda sessiz çalışır.',
+                'afk_card3_title': '⚠️ KULLANIM TAVSİYESİ',
+                'afk_card3_desc': 'Özellikle Ajan Seçim Ekranı beklerken, tur aralarında kısa süreli mola verirken veya ölüm maçı / derecesiz modlarda mola verirken açmanız önerilir. İhtiyacınız bittiğinde butondan kapatabilirsiniz.',
                 'phases': {
                     'WAITING': 'BEKLENİYOR',
                     'PREGAME': 'KARAKTER SEÇİMİ',
@@ -740,8 +1501,23 @@ WEB_TEMPLATE = """
                 'conn_error': 'System connection error!',
                 'afk_on': 'Anti-AFK Active',
                 'afk_off': 'Anti-AFK Disabled',
+                'lock_refresh_note': 'Note: Please refresh the site after each game (Press F5)',
+                'stealth_offline': 'APPEAR OFFLINE',
+                'badge_standard': 'STANDARD',
+                'badge_knife': '★ MELEE',
+                'badge_premium': '★ SPECIAL SKIN',
+                'special_skins': 'SPECIAL SKIN',
+                'party_group': 'PARTY',
+                'party_solo': 'SOLO',
                 'map': 'MAP',
                 'unknown': 'Unknown',
+                'afk_modal_title': 'ANTI-AFK SYSTEM OVERVIEW',
+                'afk_card1_title': '🛡️ HOW DOES IT WORK?',
+                'afk_card1_desc': 'When you step away from your PC or minimize the game, the system simulates periodic, human-like keystrokes via native Windows APIs in the background. This prevents Valorant from triggering idle/AFK penalties.',
+                'afk_card2_title': '⚙️ KEY ADVANTAGES',
+                'afk_card2_desc': '• Background Mode: Works even if Valorant is minimized or not in focus.<br>• Human Randomized Intervals: Randomized key intervals eliminate robotic detection patterns.<br>• Ultra Lightweight: Consumes 0% noticeable CPU and operates silently.',
+                'afk_card3_title': '⚠️ BEST PRACTICES',
+                'afk_card3_desc': 'Recommended when queuing, during buy phases, or during short breaks in unrated/deathmatch lobbies. Toggle off once you return to your keyboard.',
                 'phases': {
                     'WAITING': 'WAITING',
                     'PREGAME': 'CHARACTER SELECTION',
@@ -752,6 +1528,12 @@ WEB_TEMPLATE = """
         };
 
         let currentLang = localStorage.getItem('valolocker_lang') || 'en';
+        let selectedAgent = null;
+        let isAfkActive = false;
+        let lastData = null;
+        let AGENT_GROUPS = {};
+        let CURRENT_MODAL_PLAYER = null;
+        let CURRENT_MODAL_FILTER = 'all';
 
         function t(key) {
             return LANG_DATA[currentLang][key] || key;
@@ -784,75 +1566,110 @@ WEB_TEMPLATE = """
         function updateUIStrings() {
             $('[data-i18n]').each(function() {
                 const key = $(this).data('i18n');
-                $(this).text(t(key));
+                const val = t(key);
+                if (typeof val === 'string' && val.includes('<') && val.includes('>')) {
+                    $(this).html(val);
+                } else {
+                    $(this).text(val);
+                }
             });
             // Re-render components that use translations
-            if (lastData) updateDataFromObj(lastData);
+            if (lastData && typeof updateDataFromObj === 'function') {
+                updateDataFromObj(lastData);
+            }
+            if (CURRENT_MODAL_PLAYER && typeof openPlayerModal === 'function') {
+                openPlayerModal(CURRENT_MODAL_PLAYER.puuid);
+            }
         }
 
-        // Red Neon VFX Trail Logic (v44.75)
+        // Red Neon VFX Trail Logic (Safe DOM Ready)
         const particles = [];
         const particleCount = 20;
-
-        for (let i = 0; i < particleCount; i++) {
-            const p = document.createElement('div');
-            p.className = 'vfx-particle';
-            p.style.opacity = '0';
-            document.body.appendChild(p);
-            particles.push({
-                el: p,
-                x: 0, y: 0,
-                targetX: 0, targetY: 0
-            });
-        }
-
         let mX = 0, mY = 0;
-        document.addEventListener('mousemove', (e) => {
-            mX = e.clientX;
-            mY = e.clientY;
-        });
 
-        function animateVFX() {
-            // Increased offset for deeper "behind" effect
-            let curX = mX + 15;
-            let curY = mY + 22;
+        function initVFX() {
+            try {
+                for (let i = 0; i < particleCount; i++) {
+                    const p = document.createElement('div');
+                    p.className = 'vfx-particle';
+                    p.style.opacity = '0';
+                    document.body.appendChild(p);
+                    particles.push({
+                        el: p,
+                        x: 0, y: 0,
+                        targetX: 0, targetY: 0
+                    });
+                }
 
-            particles.forEach((p, index) => {
-                p.x += (curX - p.x) * 0.20;
-                p.y += (curY - p.y) * 0.20;
-                
-                const size = (1 - index / particleCount) * 6;
-                const opacity = (1 - index / particleCount) * 0.8;
-                
-                p.el.style.transform = `translate3d(${p.x - size/2}px, ${p.y - size/2}px, 0)`;
-                p.el.style.width = `${size}px`;
-                p.el.style.height = `${size}px`;
-                p.el.style.opacity = opacity;
-                
-                curX = p.x;
-                curY = p.y;
-            });
-            requestAnimationFrame(animateVFX);
+                document.addEventListener('mousemove', (e) => {
+                    mX = e.clientX;
+                    mY = e.clientY;
+                });
+
+                function animateVFX() {
+                    let curX = mX + 15;
+                    let curY = mY + 22;
+
+                    particles.forEach((p, index) => {
+                        p.x += (curX - p.x) * 0.20;
+                        p.y += (curY - p.y) * 0.20;
+                        
+                        const size = (1 - index / particleCount) * 6;
+                        const opacity = (1 - index / particleCount) * 0.8;
+                        
+                        p.el.style.transform = `translate3d(${p.x - size/2}px, ${p.y - size/2}px, 0)`;
+                        p.el.style.width = `${size}px`;
+                        p.el.style.height = `${size}px`;
+                        p.el.style.opacity = opacity;
+                        
+                        curX = p.x;
+                        curY = p.y;
+                    });
+                    requestAnimationFrame(animateVFX);
+                }
+                animateVFX();
+            } catch(e) { console.warn("VFX init skipped:", e); }
         }
-        animateVFX();
 
         function toggleModal(show) {
-            const modal = $('#info-modal');
+            const modal = document.getElementById('info-modal');
+            if(!modal) return;
             if(show) {
-                modal.css('display', 'flex');
-                setTimeout(() => modal.addClass('is-active'), 10);
+                modal.style.display = 'flex';
+                void modal.offsetWidth;
+                modal.classList.add('is-active');
             } else {
-                modal.removeClass('is-active');
-                setTimeout(() => modal.css('display', 'none'), 500);
+                modal.classList.remove('is-active');
+                setTimeout(() => {
+                    if (!modal.classList.contains('is-active')) {
+                        modal.style.display = 'none';
+                    }
+                }, 500);
+            }
+        }
+
+        function toggleAfkModal(show) {
+            const modal = document.getElementById('afk-modal');
+            if(!modal) return;
+            if(show) {
+                modal.style.display = 'flex';
+                void modal.offsetWidth;
+                modal.classList.add('is-active');
+            } else {
+                modal.classList.remove('is-active');
+                setTimeout(() => {
+                    if (!modal.classList.contains('is-active')) {
+                        modal.style.display = 'none';
+                    }
+                }, 500);
             }
         }
 
         console.log("VALO LOCKER PREMIUM v44.0 INITIALIZED");
-        let selectedAgent = null;
-        let isAfkActive = false;
 
         function showNotification(msg, type = 'info') {
             const container = document.getElementById('notification-container');
+            if (!container) return;
             const notif = document.createElement('div');
             notif.className = `notification ${type}`;
             notif.innerHTML = `<span>${msg}</span>`;
@@ -862,32 +1679,56 @@ WEB_TEMPLATE = """
                 setTimeout(() => notif.remove(), 500);
             }, 5000);
         }
-
-        let AGENT_GROUPS = {};
         
         async function fetchAgents() {
-            const res = await fetch('/api/agents');
-            AGENT_GROUPS = await res.json();
-            renderOriginalGrid();
+            try {
+                const res = await fetch('/api/agents');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && Object.keys(data).length > 0) {
+                        AGENT_GROUPS = data;
+                        renderOriginalGrid();
+                        return;
+                    }
+                }
+            } catch(e) {
+                console.warn("Error fetching agents:", e);
+            }
+            setTimeout(fetchAgents, 1500);
         }
 
         function renderOriginalGrid() {
-            const grid = $('#agent-grid');
-            grid.empty();
+            const grid = document.getElementById('agent-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
             
             // Tüm ajanları tek bir listede topla ve alfabetik sırala
             let allAgents = [];
             Object.values(AGENT_GROUPS).forEach(group => {
-                allAgents = allAgents.concat(group);
+                if (Array.isArray(group)) {
+                    allAgents = allAgents.concat(group);
+                }
             });
             
-            allAgents.sort((a,b) => a.name.localeCompare(b.name)).forEach(agent => {
-                const btn = $(`
-                    <div class="agent-btn ${selectedAgent === agent.name ? 'active' : ''}" onclick="selectAgent('${agent.name}', this)">
-                        <img src="${agent.icon}" alt="${agent.name}">
-                    </div>
-                `);
-                grid.append(btn);
+            if (allAgents.length === 0) return;
+
+            const uniqueMap = new Map();
+            allAgents.forEach(a => {
+                if (a && a.name) {
+                    const normKey = a.name.trim().toLowerCase();
+                    if (!uniqueMap.has(normKey)) {
+                        uniqueMap.set(normKey, a);
+                    }
+                }
+            });
+
+            Array.from(uniqueMap.values()).sort((a,b) => a.name.localeCompare(b.name)).forEach(agent => {
+                const btn = document.createElement('div');
+                btn.className = `agent-btn ${selectedAgent === agent.name ? 'active' : ''}`;
+                btn.dataset.name = agent.name;
+                btn.innerHTML = `<img src="${agent.icon}" alt="${agent.name}" onerror="this.style.opacity='0.4'">`;
+                btn.onclick = () => selectAgent(agent.name, btn);
+                grid.appendChild(btn);
             });
         }
 
@@ -918,17 +1759,23 @@ WEB_TEMPLATE = """
             showNotification(isAfkActive ? t('afk_on') : t('afk_off'), isAfkActive ? 'success' : 'info');
         }
 
-        let lastData = null;
+        // lastData declared at top
 
         function updateData() {
-            $.get("/api/data", function(data) {
-                lastData = data;
-                updateDataFromObj(data);
-            });
+            fetch("/api/data")
+                .then(r => r.json())
+                .then(data => {
+                    lastData = data;
+                    updateDataFromObj(data);
+                })
+                .catch(err => {
+                    console.warn("api/data fetch error:", err);
+                });
         }
 
         function updateDataFromObj(data) {
-                const isConnected = data.status.includes("Bağlı");
+                if (!data) return;
+                const isConnected = Boolean(data.status && data.status.startsWith("Bağlı ("));
                 $("#conn-ind").toggleClass("active", isConnected);
                 $("#connection-status").text(isConnected ? t('system_active') : t('waiting_val'));
                 
@@ -960,7 +1807,10 @@ WEB_TEMPLATE = """
                         btn.innerText = t('btn_locked');
                         btn.disabled = true;
                         btn.style.opacity = "0.5";
-                        document.getElementById('lock-status').innerHTML = `<span style="color:var(--success); font-weight:900;">${me.agent.toUpperCase()} ${t('btn_locked')}!</span>`;
+                        document.getElementById('lock-status').innerHTML = `
+                            <span style="color:var(--success); font-weight:900;">${me.agent.toUpperCase()} ${t('btn_locked')}!</span>
+                            <div class="lock-refresh-note">${t('lock_refresh_note')}</div>
+                        `;
                     }
                 }
                 renderPlayers("#ally-container", data.allies, pm, "#ally-summary", "ally");
@@ -1020,12 +1870,14 @@ WEB_TEMPLATE = """
                 } else {
                     agentSrc = mysteryAgent;
                 }
-                
-                const pNameBase = p.player_name || p.name || "Unknown";
+                let pNameBase = p.player_name || p.name || "Gizli";
+                if (!pNameBase || pNameBase === "#" || pNameBase === "None#None" || pNameBase.trim() === "" || pNameBase.includes("Gizli") || pNameBase === "Bilinmiyor") {
+                    pNameBase = "Gizli";
+                }
                 const pNameParts = pNameBase.split('#');
                 const pNameDisplay = `<span class="player-name-v9 ${p.is_me ? 'is-me' : ''}">${pNameParts[0]}</span><span class="discriminator-v10">${pNameParts[1] ? '#' + pNameParts[1] : ''}</span>`;
 
-                const row = `<div class="player-row ${teamType} ${p.is_me ? 'me' : ''}">
+                const row = `<div class="player-row ${teamType} ${p.is_me ? 'me' : ''}" onclick="openPlayerModal('${p.puuid}')" title="Detaylı tüm silah ve skin envanterini görmek için tıkla">
                     <div class="rank-card">
                         <img src="${p.rank_image}" class="rank-icon-v10">
                         <div class="rank-name-v10">${(p.rank_obj && p.rank_obj[currentLang]) ? p.rank_obj[currentLang] : (p.rank || "Unknown")}</div>
@@ -1042,7 +1894,9 @@ WEB_TEMPLATE = """
                         </div>
                     </div>
                     <div class="info-block">
-                        <div>${pNameDisplay}</div>
+                        <div style="display:flex; align-items:center;">
+                            ${pNameDisplay}
+                        </div>
                         <div style="margin-top:5px;">${partyTag}</div>
                     </div>
                     <div class="skin-deck">${skins}</div>
@@ -1051,33 +1905,186 @@ WEB_TEMPLATE = """
             });
         }
 
-        $(document).ready(() => {
+        // CURRENT_MODAL_PLAYER & CURRENT_MODAL_FILTER declared at top
+
+        function openPlayerModal(puuid) {
+            if (!lastData) return;
+            const allPlayers = (lastData.allies || []).concat(lastData.enemies || []);
+            const player = allPlayers.find(p => p.puuid === puuid);
+            if (!player) return;
+
+            CURRENT_MODAL_PLAYER = player;
+            CURRENT_MODAL_FILTER = 'all';
+
+            let pName = player.player_name || player.name || "Gizli";
+            if (!pName || pName === "#" || pName === "None#None" || pName.trim() === "" || pName.includes("Gizli") || pName === "Bilinmiyor") {
+                pName = "Gizli";
+            }
+            const parts = pName.split('#');
+            $('#pm-player-name').text(parts[0] || 'Gizli');
+            $('#pm-player-tag').text(parts[1] ? '#' + parts[1] : '');
+
+            const agentImg = player.agent_image || `https://media.valorant-api.com/agents/${player.agent_uuid}/displayicon.png`;
+            $('#pm-agent-img').attr('src', agentImg || 'https://media.valorant-api.com/agents/add6443a-4571-4c46-bd0a-ce87ee364b67/displayicon.png');
+            
+            if (player.rank_image) {
+                $('#pm-rank-img').attr('src', player.rank_image).show();
+            } else {
+                $('#pm-rank-img').hide();
+            }
+
+            const rankName = (player.rank_obj && player.rank_obj[currentLang]) ? player.rank_obj[currentLang] : (player.rank || "Unranked");
+            const kpText = (player.kp !== undefined && player.rank !== "Unranked") ? ` (${player.kp} KP)` : '';
+            $('#pm-rank-badge').text(rankName + kpText);
+            $('#pm-level-badge').text(`LVL ${player.level || '0'}`);
+
+            const partyText = player.party_id ? t('party_group') : t('party_solo');
+            $('#pm-party-badge').text(partyText);
+
+            const premCount = player.premium_count || (player.all_weapons || []).filter(w => w.is_premium).length;
+            $('#pm-prem-badge').text(`★ ${premCount} ${t('special_skins')}`);
+
+            renderModalWeaponCards(player.all_weapons || []);
+
+            // Arka plan sayfasının kaymasını engelle
+            document.body.style.overflow = 'hidden';
+
+            const modal = $('#player-skins-modal');
+            modal.css('display', 'flex');
+            setTimeout(() => modal.addClass('is-active'), 10);
+        }
+
+        function closePlayerModal() {
+            const modal = $('#player-skins-modal');
+            modal.removeClass('is-active');
+            setTimeout(() => modal.css('display', 'none'), 300);
+            // Arka plan sayfasının kaymasını tekrar serbest bırak
+            document.body.style.overflow = '';
+            CURRENT_MODAL_PLAYER = null;
+        }
+
+        function renderModalWeaponCards(weapons) {
+            const grid = $('#pm-weapons-grid');
+            grid.empty();
+
+            if (!weapons || weapons.length === 0) {
+                grid.html('<div style="grid-column:1/-1; text-align:center; padding:40px; color:#888; font-size:1.1em;">Envanter verisi henüz yüklenmedi veya lobi bekleniyor...</div>');
+                return;
+            }
+
+            weapons.forEach(w => {
+                const sName = currentLang === 'en' ? (w.skin_name_en || w.skin_name) : (w.skin_name || w.skin_name_en);
+                const isKnife = w.category === 'melee';
+                const isPrem = w.is_premium;
+
+                let cardClass = 'weapon-card';
+                if (isKnife) cardClass += ' is-knife';
+                else if (isPrem) cardClass += ' is-premium';
+
+                let badgeHtml = `<span class="w-status-badge badge-std">${t('badge_standard')}</span>`;
+                if (isKnife) badgeHtml = `<span class="w-status-badge badge-knife">${t('badge_knife')}</span>`;
+                else if (isPrem) badgeHtml = `<span class="w-status-badge badge-prem">${t('badge_premium')}</span>`;
+
+                const catName = currentLang === 'en' ? (w.category_name_en || w.category_name) : (w.category_name || w.category_name_en);
+                const wName = currentLang === 'en' ? (w.name_en || w.name) : (w.name || w.name_en);
+
+                const cardHtml = `
+                    <div class="${cardClass}">
+                        <div class="weapon-card-top">
+                            <span class="w-name-badge">${wName}</span>
+                            ${badgeHtml}
+                        </div>
+                        <div class="weapon-card-img-wrap">
+                            <img src="${w.icon || 'https://media.valorant-api.com/weapons/2f59173c-4bed-4c60-ba37-647314299aa2/displayicon.png'}" 
+                                 alt="${sName}" 
+                                 onerror="this.src='https://media.valorant-api.com/weapons/2f59173c-4bed-4c60-ba37-647314299aa2/displayicon.png'">
+                        </div>
+                        <div class="weapon-card-bottom">
+                            <div class="skin-title" title="${sName}">${sName}</div>
+                            <div class="skin-category-sub">${catName}</div>
+                        </div>
+                    </div>
+                `;
+                grid.append(cardHtml);
+            });
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closePlayerModal();
+                toggleModal(false);
+                toggleAfkModal(false);
+            }
+        });
+
+        let appInitialized = false;
+        function initApp() {
+            if (appInitialized) return;
+            appInitialized = true;
+            initVFX();
             setLanguage(currentLang);
             fetchAgents();
             setInterval(updateData, 2000);
-        });
+            updateData();
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
+        if (typeof $ !== 'undefined') {
+            $(document).ready(initApp);
+        }
     </script>
 </body>
 </html>
 """
 
-# DOĞRU UUID'LER & Kategoriler (API'den dinamik dolacak)
-AGENTS = {}
-AGENT_DATA = {} # name -> {"role": str, "icon": str, "uuid": str}
+DEFAULT_PLAYABLE_AGENTS = {
+    "Jett": ("add6443a-41bd-e414-f6ad-e58d267f4e95", "Düellocu", "https://media.valorant-api.com/agents/add6443a-41bd-e414-f6ad-e58d267f4e95/displayicon.png"),
+    "Reyna": ("a3bfb853-43b2-7238-a4f1-ad90e9e46bcc", "Düellocu", "https://media.valorant-api.com/agents/a3bfb853-43b2-7238-a4f1-ad90e9e46bcc/displayicon.png"),
+    "Raze": ("f94c3b30-42be-e959-889c-5aa313dba261", "Düellocu", "https://media.valorant-api.com/agents/f94c3b30-42be-e959-889c-5aa313dba261/displayicon.png"),
+    "Phoenix": ("eb93336a-449b-9c1b-0a54-a891f7921d69", "Düellocu", "https://media.valorant-api.com/agents/eb93336a-449b-9c1b-0a54-a891f7921d69/displayicon.png"),
+    "Yoru": ("7f94d92c-4234-0a36-9646-3a87eb8b5c89", "Düellocu", "https://media.valorant-api.com/agents/7f94d92c-4234-0a36-9646-3a87eb8b5c89/displayicon.png"),
+    "Neon": ("bb2a4828-46eb-8cd1-e765-15848195d751", "Düellocu", "https://media.valorant-api.com/agents/bb2a4828-46eb-8cd1-e765-15848195d751/displayicon.png"),
+    "Iso": ("0e38b510-41a8-5780-5e8f-568b2a4f2d6c", "Düellocu", "https://media.valorant-api.com/agents/0e38b510-41a8-5780-5e8f-568b2a4f2d6c/displayicon.png"),
+    "Waylay": ("df1cb487-4902-002e-5c17-d28e83e78588", "Düellocu", "https://media.valorant-api.com/agents/df1cb487-4902-002e-5c17-d28e83e78588/displayicon.png"),
+    "Omen": ("8e253930-4c05-31dd-1b6c-968525494517", "Kontrol Uzmanı", "https://media.valorant-api.com/agents/8e253930-4c05-31dd-1b6c-968525494517/displayicon.png"),
+    "Clove": ("1dbf2edd-4729-0984-3115-daa5eed44993", "Kontrol Uzmanı", "https://media.valorant-api.com/agents/1dbf2edd-4729-0984-3115-daa5eed44993/displayicon.png"),
+    "Brimstone": ("9f0d8ba9-4140-b941-57d3-a7ad57c6b417", "Kontrol Uzmanı", "https://media.valorant-api.com/agents/9f0d8ba9-4140-b941-57d3-a7ad57c6b417/displayicon.png"),
+    "Viper": ("707eab51-4836-f488-046a-cda6bf494859", "Kontrol Uzmanı", "https://media.valorant-api.com/agents/707eab51-4836-f488-046a-cda6bf494859/displayicon.png"),
+    "Astra": ("41fb69c1-4189-7b37-f117-bcaf1e96f1bf", "Kontrol Uzmanı", "https://media.valorant-api.com/agents/41fb69c1-4189-7b37-f117-bcaf1e96f1bf/displayicon.png"),
+    "Harbor": ("95b78ed7-4637-86d9-7e41-71ba8c293152", "Kontrol Uzmanı", "https://media.valorant-api.com/agents/95b78ed7-4637-86d9-7e41-71ba8c293152/displayicon.png"),
+    "Miks": ("7c8a4701-4de6-9355-b254-e09bc2a34b72", "Kontrol Uzmanı", "https://media.valorant-api.com/agents/7c8a4701-4de6-9355-b254-e09bc2a34b72/displayicon.png"),
+    "Sova": ("320b2a48-4d9b-a075-30f1-1f93a9b638fa", "Öncü", "https://media.valorant-api.com/agents/320b2a48-4d9b-a075-30f1-1f93a9b638fa/displayicon.png"),
+    "Fade": ("dade69b4-4f5a-8528-247b-219e5a1facd6", "Öncü", "https://media.valorant-api.com/agents/dade69b4-4f5a-8528-247b-219e5a1facd6/displayicon.png"),
+    "Breach": ("5f8d3a7f-467b-97f3-062c-13acf203c006", "Öncü", "https://media.valorant-api.com/agents/5f8d3a7f-467b-97f3-062c-13acf203c006/displayicon.png"),
+    "Skye": ("6f2a04ca-43e0-be17-7f36-b3908627744d", "Öncü", "https://media.valorant-api.com/agents/6f2a04ca-43e0-be17-7f36-b3908627744d/displayicon.png"),
+    "KAY/O": ("601dbbe7-43ce-be57-2a40-4abd24953621", "Öncü", "https://media.valorant-api.com/agents/601dbbe7-43ce-be57-2a40-4abd24953621/displayicon.png"),
+    "Gekko": ("e370fa57-4757-3604-3648-499e1f642d3f", "Öncü", "https://media.valorant-api.com/agents/e370fa57-4757-3604-3648-499e1f642d3f/displayicon.png"),
+    "Tejo": ("b444168c-4e35-8076-db47-ef9bf368f384", "Öncü", "https://media.valorant-api.com/agents/b444168c-4e35-8076-db47-ef9bf368f384/displayicon.png"),
+    "Killjoy": ("1e58de9c-4950-5125-93e9-a0aee9f98746", "Gözcü", "https://media.valorant-api.com/agents/1e58de9c-4950-5125-93e9-a0aee9f98746/displayicon.png"),
+    "Cypher": ("117ed9e3-49f3-6512-3ccf-0cada7e3823b", "Gözcü", "https://media.valorant-api.com/agents/117ed9e3-49f3-6512-3ccf-0cada7e3823b/displayicon.png"),
+    "Sage": ("569fdd95-4d10-43ab-ca70-79becc718b46", "Gözcü", "https://media.valorant-api.com/agents/569fdd95-4d10-43ab-ca70-79becc718b46/displayicon.png"),
+    "Chamber": ("22697a3d-45bf-8dd7-4fec-84a9e28c69d7", "Gözcü", "https://media.valorant-api.com/agents/22697a3d-45bf-8dd7-4fec-84a9e28c69d7/displayicon.png"),
+    "Deadlock": ("cc8b64c8-4b25-4ff9-6e7f-37b4da43d235", "Gözcü", "https://media.valorant-api.com/agents/cc8b64c8-4b25-4ff9-6e7f-37b4da43d235/displayicon.png"),
+    "Vyse": ("efba5359-4016-a1e5-7626-b1ae76895940", "Gözcü", "https://media.valorant-api.com/agents/efba5359-4016-a1e5-7626-b1ae76895940/displayicon.png"),
+    "Veto": ("92eeef5d-43b5-1d4a-8d03-b3927a09034b", "Gözcü", "https://media.valorant-api.com/agents/92eeef5d-43b5-1d4a-8d03-b3927a09034b/displayicon.png")
+}
+AGENTS = {name: data[0] for name, data in DEFAULT_PLAYABLE_AGENTS.items()}
+AGENT_DATA = {name: {"uuid": data[0], "role": data[1], "icon": data[2]} for name, data in DEFAULT_PLAYABLE_AGENTS.items()}
 
 def fetch_agent_database():
     """Valorant-api.com'dan en güncel ajan listesini ve rollerini çeker"""
     global AGENTS, AGENT_DATA
     try:
-        with console.status("[bold cyan]Ajan veritabanı güncelleniyor...[/bold cyan]", spinner="dots"):
-            response = requests.get("https://valorant-api.com/v1/agents", params={"language": "tr-TR", "isPlayableCharacter": "true"})
-            if response.status_code == 200:
-                data_api = response.json()["data"]
-                
-                if len(data_api) > 0:
-                    AGENTS.clear()
-                    AGENT_DATA.clear()
-
+        response = requests.get("https://valorant-api.com/v1/agents", params={"language": "tr-TR", "isPlayableCharacter": "true"}, timeout=8)
+        if response.status_code == 200:
+            data_api = response.json().get("data", [])
+            if len(data_api) > 0:
+                AGENTS.clear()
+                AGENT_DATA.clear()
                 for agent in data_api:
                     name = agent.get("displayName")
                     uuid = agent.get("uuid")
@@ -1085,16 +2092,17 @@ def fetch_agent_database():
                     icon = heal_url(agent.get("displayIcon"))
                     
                     if name and uuid:
-                        AGENTS[name] = uuid
-                        AGENT_DATA[name] = {
+                        clean_name = name.title() if name != "KAY/O" else "KAY/O"
+                        AGENTS[clean_name] = uuid
+                        AGENT_DATA[clean_name] = {
                             "uuid": uuid,
                             "role": role,
                             "icon": icon
                         }
                 return True
     except:
-        return False
-    return False
+        pass
+    return len(AGENT_DATA) > 0
 
 VAL_MAPS = {
     "/Game/Maps/Ascent/Ascent": "Ascent",
@@ -1116,11 +2124,14 @@ VAL_MAPS = {
     "Juliett": "Sunset", # v27.4: Fixing double T spelling
     "Jungle": "Sunset",
     "/Game/Maps/Juliett/Juliett": "Sunset", # v27.4: Double T path
-    "/Game/Maps/Juliett/Sunset": "Sunset", # v27.4: Double T hybrid
     "/Game/Maps/Rook/Rook": "Corrode",
     "/Game/Maps/Infinity/Infinity": "Abyss", # v25.7: User debug confirmed Abyss
     "/Game/Maps/Extraction/Abyss": "Abyss",
     "/Game/Maps/Corrode/Corrode": "Abyss", # Keeping as fallback
+    "/Game/Maps/Plummet/Plummet": "Summit", # Riot codename Plummet -> Summit
+    "/Game/Maps/Plummet/Summit": "Summit",
+    "Plummet": "Summit",
+    "Summit": "Summit",
     "/Game/Maps/HURM/HURM_P/HURM_P": "District (TDM)",
     "/Game/Maps/HURM/HURM_Q/HURM_Q": "Piazza (TDM)",
     "/Game/Maps/HURM/HURM_R/HURM_R": "Kasbah (TDM)",
@@ -1263,6 +2274,7 @@ class Locker:
         self._rank_cache = {} # Kalıcı rütbe önbelleği
         self._tier_cache = {} # Kalıcı tier id önbelleği
         self._kp_cache = {}   # v38.0: Kalıcı KP önbelleği
+        self._level_cache = {} # Kalıcı seviye önbelleği
         
     def get_player_rank(self, puuid):
         """Oyuncunun Competitive Rank bilgisini ve Tier ID'sini al"""
@@ -1308,42 +2320,55 @@ class Locker:
 
     def connect(self):
         try:
-            r = self.session.get(f"{self.base_url}/entitlements/v1/token", headers=self.headers)
-            if r.status_code == 200:
-                data = r.json()
-                self.puuid = data.get('subject')
-                self.access_token = data.get('accessToken')
-                self.entitlements = data.get('token')
+            # 1. Valorant-Client RSO Access Token & PUUID al (Riot son güncellemelerde riot-client tokenlarına BAD_CLAIMS veriyor)
+            r_rso = self.session.get(f"{self.base_url}/rso-auth/v2/authorizations/valorant-client", headers=self.headers)
+            if r_rso.status_code == 200:
+                auth_data = r_rso.json().get("authorization", {})
+                self.access_token = auth_data.get("accessToken", {}).get("token")
                 
+                # Token'dan veya entitlements'tan PUUID çıkar
+                try:
+                    payload = self.access_token.split(".")[1]
+                    payload += "=" * ((4 - len(payload) % 4) % 4)
+                    claims = json.loads(base64.urlsafe_b64decode(payload.encode()))
+                    self.puuid = claims.get("sub")
+                except:
+                    pass
+            
+            # Fallback PUUID ve token eğer rso alınamazsa
+            if not self.puuid or not self.access_token:
+                r = self.session.get(f"{self.base_url}/entitlements/v1/token", headers=self.headers)
+                if r.status_code == 200:
+                    data = r.json()
+                    self.puuid = self.puuid or data.get('subject')
+                    self.access_token = self.access_token or data.get('accessToken')
+                    self.entitlements = data.get('token')
+
+            # 2. Entitlements Token al (valorant-client access token ile Riot Entitlements API üzerinden)
+            if self.access_token:
+                try:
+                    r_ent = requests.post(
+                        "https://entitlements.auth.riotgames.com/api/token/v1",
+                        headers={"Authorization": f"Bearer {self.access_token}", "Content-Type": "application/json"},
+                        json={},
+                        timeout=5
+                    )
+                    if r_ent.status_code == 200:
+                        self.entitlements = r_ent.json().get("entitlements_token")
+                except:
+                    pass
+
+            # Eğer external entitlements alınamadıysa local fallback
+            if not self.entitlements:
+                r_local = self.session.get(f"{self.base_url}/entitlements/v1/token", headers=self.headers)
+                if r_local.status_code == 200:
+                    self.entitlements = r_local.json().get('token')
+
+            if self.access_token and self.entitlements:
                 r2 = self.session.get(f"{self.base_url}/product-session/v1/external-sessions", headers=self.headers)
                 if r2.status_code == 200:
                     for sid, sdata in r2.json().items():
                         if sdata.get("productId") == "valorant":
-                            # Doğru versiyon string'ini (release-xx.xx...) bulmaya çalış
-                            try:
-                                # 2. Yol: ShooterGame.log dosyasından versiyonu çek (En Garantisi)
-                                local_appdata = os.getenv('LOCALAPPDATA')
-                                log_path = os.path.join(local_appdata, "VALORANT", "Saved", "Logs", "ShooterGame.log")
-                                
-                                if os.path.exists(log_path):
-                                    with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
-                                        for line in f:
-                                            if "CI server version:" in line:
-                                                # Örnek: ... CI server version: release-12.00-30-4183428
-                                                parts = line.split("CI server version:")
-                                                if len(parts) > 1:
-                                                    self.version = parts[1].strip()
-                                                    # Version formatı düzeltme: release-12.00-30-4183428 -> release-12.00-shipping-30-4183428
-                                                    if "-shipping-" not in self.version and len(self.version.split("-")) == 4:
-                                                        v_parts = self.version.split("-")
-                                                        self.version = f"{v_parts[0]}-{v_parts[1]}-shipping-{v_parts[2]}-{v_parts[3]}"
-                                                    break
-                                else:
-                                    # Log dosyası yoksa hash kullan (çalışmaz ama fallback)
-                                    self.version = sdata.get("version")
-                            except:
-                                self.version = sdata.get("version")
-
                             # Shard ve Region tespiti
                             launch_args = sdata.get("launchConfiguration", {}).get("arguments", [])
                             for arg in launch_args:
@@ -1351,8 +2376,36 @@ class Locker:
                                     self.region = arg.split("=")[1]
                                 if arg.startswith("-shard="):
                                     self.shard = arg.split("=")[1]
-                            
+                            self.version = sdata.get("version")
                             break
+
+                # ShooterGame.log dosyasından versiyonu çek (En Garantisi)
+                if not self.version or "-shipping-" not in self.version:
+                    try:
+                        local_appdata = os.getenv('LOCALAPPDATA')
+                        log_path = os.path.join(local_appdata, "VALORANT", "Saved", "Logs", "ShooterGame.log")
+                        if os.path.exists(log_path):
+                            with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+                                for line in f:
+                                    if "CI server version:" in line:
+                                        parts = line.split("CI server version:")
+                                        if len(parts) > 1:
+                                            self.version = parts[1].strip()
+                                            if "-shipping-" not in self.version and len(self.version.split("-")) == 4:
+                                                v_parts = self.version.split("-")
+                                                self.version = f"{v_parts[0]}-{v_parts[1]}-shipping-{v_parts[2]}-{v_parts[3]}"
+                                            break
+                    except:
+                        pass
+
+                # Son çare valorant-api.com üzerinden en güncel Client Version çek
+                if not self.version:
+                    try:
+                        r_ver = requests.get("https://valorant-api.com/v1/version", timeout=4).json()
+                        self.version = r_ver.get("data", {}).get("riotClientVersion")
+                    except:
+                        pass
+
                 return True
         except:
             pass
@@ -1363,11 +2416,11 @@ class Locker:
             "Authorization": f"Bearer {self.access_token}",
             "X-Riot-Entitlements-JWT": self.entitlements,
             "Content-Type": "application/json",
-            "User-Agent": "RiotClient/43.0.1.4393933.4384232 rso-auth (Windows;10;;Professional, x64)"
+            "User-Agent": "RiotClient/43.0.1.4393933.4384232 rso-auth (Windows;10;;Professional, x64)",
+            "X-Riot-ClientPlatform": "ewogICAgInBsYXRmb3JtVHlwZSI6ICJQQyIsCiAgICAicGxhdGZvcm1PUyI6ICJXaW5kb3dzIiwKICAgICJwbGF0Zm9ybU9TVmVyc2lvbiI6ICIxMC4wLjI2MjAwLjEuMjU2LjY0Yml0IiwKICAgICJwbGF0Zm9ybUNoaXBzZXQiOiAiVW5rbm93biIKfQ=="
         }
         if self.version:
             headers["X-Riot-ClientVersion"] = self.version
-            headers["X-Riot-ClientPlatform"] = "ew0KCSJwbGF0Zm9ybVR5cGUiOiAiUEMiLA0KCSJwbGF0Zm9ybU9TIjogIldpbmRvd3MiLA0KCSJwbGF0Zm9ybU9TVmVyc2lvbiI6ICIxMC4wLjE5MDQyLjEuMjU2LjY0Yml0IiwNCgkicGxhdGZvcm1DaGlwc2V0IjogIlVua25vd24iDQp9"
         return headers
     
     def get_match_loadouts(self, match_id):
@@ -1451,33 +2504,71 @@ class Locker:
         return None
     
     def get_player_names(self, puuids):
-        """Toplu şekilde oyuncu isimlerini al - Çok daha hızlıdır"""
+        """Toplu şekilde oyuncu isimlerini al - Çok daha hızlı ve güvenilirdir"""
         results = {}
         to_fetch = []
         
+        invalid_names = {"Bilinmiyor", "#", "?#?", "None#None", "Unknown", ""}
+        
         for puuid in puuids:
-            if puuid in self._name_cache:
-                results[puuid] = self._name_cache[puuid]
+            if not puuid:
+                continue
+            cached = self._name_cache.get(puuid)
+            if cached and cached not in invalid_names:
+                results[puuid] = cached
             else:
                 to_fetch.append(puuid)
         
         if not to_fetch:
             return results
 
+        # 1. Aşama: Remote PVP Name Service (PUT /name-service/v2/players)
         try:
             url = f"https://pd.{self.shard}.a.pvp.net/name-service/v2/players"
             r = self.session.put(url, headers=self.get_headers(), json=to_fetch, verify=False)
             if r.status_code == 200:
                 data = r.json()
                 for player in data:
-                    name = f"{player.get('GameName', '?')}#{player.get('TagLine', '?')}"
                     puuid = player.get('Subject')
-                    self._name_cache[puuid] = name
-                    results[puuid] = name
+                    g_name = player.get('GameName')
+                    t_line = player.get('TagLine')
+                    d_name = player.get('DisplayName')
+                    
+                    full_name = None
+                    if g_name and t_line:
+                        full_name = f"{g_name}#{t_line}"
+                    elif d_name and "#" in d_name:
+                        full_name = d_name
+                    elif g_name:
+                        full_name = f"{g_name}#???"
+                    
+                    if full_name and full_name not in invalid_names and puuid:
+                        self._name_cache[puuid] = full_name
+                        results[puuid] = full_name
         except:
             pass
-            
-        # Eksik kalanları doldur
+
+        # 2. Aşama: Local Riot Client Chat Names Fallback (/chat/v4/names)
+        missing = [p for p in to_fetch if p not in results]
+        if missing:
+            try:
+                auth = base64.b64encode(f"riot:{self.password}".encode()).decode()
+                local_headers = {"Authorization": f"Basic {auth}"}
+                r_local = self.session.put(f"{self.base_url}/chat/v4/names", headers=local_headers, json=missing, verify=False)
+                if r_local.status_code == 200:
+                    for item in r_local.json():
+                        p_id = item.get("id") or item.get("puuid")
+                        g_name = item.get("game_name")
+                        t_line = item.get("game_tag")
+                        if p_id and g_name and t_line:
+                            full_name = f"{g_name}#{t_line}"
+                            if full_name not in invalid_names:
+                                self._name_cache[p_id] = full_name
+                                results[p_id] = full_name
+            except:
+                pass
+
+        # Eksik kalanlar
         for puuid in to_fetch:
             if puuid not in results:
                 results[puuid] = "Bilinmiyor"
@@ -1615,6 +2706,14 @@ class Locker:
                 presence_map = {}
                 for p in presences:
                     puuid = p.get("puuid")
+                    g_name = p.get("game_name")
+                    g_tag = p.get("game_tag")
+                    p_name = None
+                    if g_name and g_tag:
+                        p_name = f"{g_name}#{g_tag}"
+                        if puuid and (puuid not in self._name_cache or self._name_cache[puuid] in ["Bilinmiyor", "#", "?#?", "None#None", "Unknown", ""]):
+                            self._name_cache[puuid] = p_name
+
                     private_b64 = p.get("private")
                     if puuid and private_b64:
                         try:
@@ -1638,6 +2737,7 @@ class Locker:
                                 party_id = decoded["matchPresenceData"].get("partyId")
 
                             presence_map[puuid] = {
+                                "name": p_name,
                                 "rank": rank,
                                 "level": decoded.get("accountLevel", 0),
                                 "party_id": party_id
@@ -1650,6 +2750,14 @@ class Locker:
                 # Mevcut map'e ekle veya güncelle
                 for p in p2:
                     puuid = p.get("puuid")
+                    g_name = p.get("game_name")
+                    g_tag = p.get("game_tag")
+                    p_name = None
+                    if g_name and g_tag:
+                        p_name = f"{g_name}#{g_tag}"
+                        if puuid and (puuid not in self._name_cache or self._name_cache[puuid] in ["Bilinmiyor", "#", "?#?", "None#None", "Unknown", ""]):
+                            self._name_cache[puuid] = p_name
+
                     private_b64 = p.get("private")
                     if puuid and private_b64 and puuid not in presence_map:
                         try:
@@ -1660,15 +2768,100 @@ class Locker:
                                 party_id = decoded["matchPresenceData"].get("partyId")
                             
                             presence_map[puuid] = {
+                                "name": p_name,
                                 "rank": rank,
                                 "level": decoded.get("accountLevel", 0),
                                 "party_id": party_id
                             }
                         except: continue
+                    elif puuid and p_name and puuid in presence_map and not presence_map[puuid].get("name"):
+                        presence_map[puuid]["name"] = p_name
 
             return presence_map
         except:
             return {}
+
+    def get_live_match_score(self, coregame_match_id=None):
+        """Yerel Riot Client presence verisinden canlı maç skorunu, haritayı ve oyun modunu çek"""
+        result = {
+            "ally_score": 0,
+            "enemy_score": 0,
+            "map_name": "",
+            "queue_id": "",
+            "is_competitive": False,
+            "state": "INGAME"
+        }
+        
+        # 1. Öncelikle coregame_match_id varsa doğrudan coregame detayından haritayı ve modu al
+        try:
+            m_id = coregame_match_id or self.get_coregame()
+            if m_id:
+                c_details = self.get_coregame_details(m_id)
+                if c_details:
+                    map_id_raw = c_details.get("MapID", "")
+                    if map_id_raw:
+                        result["map_name"] = VAL_MAPS.get(map_id_raw, map_id_raw.split('/')[-1] if '/' in map_id_raw else "")
+                    
+                    # Queue ID kontrolü
+                    q_id = c_details.get("MatchmakingData", {}).get("QueueID", "")
+                    if not q_id:
+                        q_id = c_details.get("QueueID", "")
+                    if q_id:
+                        result["queue_id"] = str(q_id).lower()
+                        if "competitive" in result["queue_id"]:
+                            result["is_competitive"] = True
+        except:
+            pass
+
+        try:
+            auth = base64.b64encode(f"riot:{self.password}".encode()).decode()
+            local_headers = {"Authorization": f"Basic {auth}"}
+            
+            # /chat/v4/presences ve /presence/v1/presences üzerinden tara
+            endpoints = [f"{self.base_url}/chat/v4/presences", f"{self.base_url}/presence/v1/presences"]
+            found_presence = False
+            for ep in endpoints:
+                try:
+                    r = self.session.get(ep, headers=local_headers, verify=False)
+                    if r.status_code != 200:
+                        continue
+                    presences = r.json().get("presences", [])
+                    for p in presences:
+                        p_puuid = p.get("puuid")
+                        if p_puuid and p_puuid == self.puuid:
+                            priv_b64 = p.get("private")
+                            if priv_b64:
+                                decoded = json.loads(base64.b64decode(priv_b64).decode())
+                                session_loop_state = decoded.get("sessionLoopState", "")
+                                party_state = decoded.get("partyState", "")
+                                p_score = decoded.get("partyOwnerMatchScoreAllyTeam", decoded.get("partyScore", 0))
+                                e_score = decoded.get("partyOwnerMatchScoreEnemyTeam", 0)
+                                map_path = decoded.get("matchMap", "")
+                                queue_id_pres = decoded.get("queueId", decoded.get("matchQueueId", ""))
+                                
+                                if p_score is not None:
+                                    result["ally_score"] = int(p_score)
+                                if e_score is not None:
+                                    result["enemy_score"] = int(e_score)
+
+                                # Eğer coregame detayından harita bulunamadıysa presence mapPath'e bak
+                                if not result["map_name"] and map_path:
+                                    result["map_name"] = VAL_MAPS.get(map_path, map_path.split('/')[-1] if '/' in map_path else "")
+
+                                if queue_id_pres:
+                                    result["queue_id"] = str(queue_id_pres).lower()
+                                    if "competitive" in result["queue_id"]:
+                                        result["is_competitive"] = True
+                                
+                                found_presence = True
+                                break
+                    if found_presence:
+                        break
+                except:
+                    pass
+        except:
+            pass
+        return result
 
     def get_all_players(self, match_id, match_type="pregame"):
         """Maçtaki tüm oyuncuları al (pregame veya coregame)"""
@@ -1684,7 +2877,7 @@ class Locker:
             players_key = None
         
         if not details:
-            return None, None, None
+            return None, None, None, None
         
         ally_players = []
         enemy_players = []
@@ -1754,6 +2947,14 @@ class Locker:
             presence_rank_tier = p_info.get("rank", 0)
             presence_kp = p_info.get("kp", 0)
             
+            invalid_names = {"Bilinmiyor", "#", "?#?", "None#None", "Unknown", ""}
+            if not name or name in invalid_names:
+                if p_info.get("name") and p_info["name"] not in invalid_names:
+                    name = p_info["name"]
+                    self._name_cache[puuid] = name
+                elif puuid in self._name_cache and self._name_cache[puuid] not in invalid_names:
+                    name = self._name_cache[puuid]
+            
             # Rank ve KP bilgisi (Self caching)
             kp = 0
             if puuid in self._rank_cache:
@@ -1792,33 +2993,49 @@ class Locker:
             if (not level or level == 0) and p_info.get("level", 0) > 0:
                 level = p_info.get("level")
 
-            # 4. Yol: Match History Bypass (Gizli levelleri aşmak için)
-            if not level or level == 0:
-                cache_key = f"lvl_{puuid}"
-                if hasattr(self, "_level_cache") and cache_key in self._level_cache:
-                    level = self._level_cache[cache_key]
-                else:
-                    try:
-                        # Çok hızlı bir kontrol: Maç geçmişine bak
-                        url = f"https://pd.{self.shard}.a.pvp.net/match-history/v1/history/{puuid}?startIndex=0&endIndex=1"
-                        r = self.session.get(url, headers=self.get_headers(), verify=False)
-                        if r.status_code == 200:
-                            history = r.json().get("History", [])
-                            if history:
-                                match_id = history[0].get("MatchID")
-                                # Maç detaylarında seviye gizlenmez (Platform sızıntısı)
-                                details_url = f"https://pd.{self.shard}.a.pvp.net/match-details/v1/matches/{match_id}"
-                                r2 = self.session.get(details_url, headers=self.get_headers(), verify=False)
-                                if r2.status_code == 200:
-                                    m_data = r2.json()
-                                    for m_player in m_data.get("players", []):
-                                        if m_player.get("subject") == puuid:
-                                            level = m_player.get("accountLevel", 0)
-                                            if level > 0:
+            # 4. Yol: Match History Bypass (Gizli levelleri ve gizli isimleri açmak için)
+            need_level = not level or level == 0
+            need_name = not name or name in invalid_names
+            cache_key = f"lvl_{puuid}"
+
+            if need_level and hasattr(self, "_level_cache") and cache_key in self._level_cache:
+                level = self._level_cache[cache_key]
+                need_level = not level or level == 0
+
+            if need_level or need_name:
+                try:
+                    # Çok hızlı bir kontrol: Maç geçmişine bak
+                    url = f"https://pd.{self.shard}.a.pvp.net/match-history/v1/history/{puuid}?startIndex=0&endIndex=1"
+                    r = self.session.get(url, headers=self.get_headers(), verify=False)
+                    if r.status_code == 200:
+                        history = r.json().get("History", [])
+                        if history:
+                            match_id = history[0].get("MatchID")
+                            # Maç detaylarında seviye ve gerçek Riot ID gizlenmez (Platform sızıntısı)
+                            details_url = f"https://pd.{self.shard}.a.pvp.net/match-details/v1/matches/{match_id}"
+                            r2 = self.session.get(details_url, headers=self.get_headers(), verify=False)
+                            if r2.status_code == 200:
+                                m_data = r2.json()
+                                for m_player in m_data.get("players", []):
+                                    if m_player.get("subject") == puuid:
+                                        if need_level:
+                                            lvl = m_player.get("accountLevel", 0)
+                                            if lvl > 0:
+                                                level = lvl
                                                 if not hasattr(self, "_level_cache"): self._level_cache = {}
                                                 self._level_cache[cache_key] = level
-                                            break
-                    except: pass
+                                        if need_name:
+                                            m_gname = m_player.get("gameName")
+                                            m_tag = m_player.get("tagLine")
+                                            if m_gname and m_tag:
+                                                name = f"{m_gname}#{m_tag}"
+                                                self._name_cache[puuid] = name
+                                        break
+                except: pass
+
+            # Son kontrol: Hala isim bulunamadıysa (Yayıncı Modu / Incognito vb.)
+            if not name or name in invalid_names:
+                name = "Gizli"
 
             return {
                 "puuid": puuid,
@@ -1838,14 +3055,16 @@ class Locker:
         if match_type == "pregame":
             # Pregame format
             ally_team = details.get(ally_key, {})
-            for player in ally_team.get(players_key, []):
-                ally_players.append(process_player(player))
+            ally_list = ally_team.get(players_key, [])
+            enemy_team = details.get(enemy_key, {}) if enemy_key else {}
+            enemy_list = enemy_team.get(players_key, []) if enemy_team else []
             
-            if enemy_key:
-                enemy_team = details.get(enemy_key, {})
-                if enemy_team:
-                    for player in enemy_team.get(players_key, []):
-                        enemy_players.append(process_player(player))
+            # Eşzamanlı (Concurrent) oyuncu analizi
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                ally_futures = [executor.submit(process_player, p) for p in ally_list]
+                enemy_futures = [executor.submit(process_player, p) for p in enemy_list]
+                ally_players = [f.result() for f in ally_futures]
+                enemy_players = [f.result() for f in enemy_futures]
         else:
             # Coregame format - tüm oyuncular tek listede
             all_players = details.get("Players", [])
@@ -1857,9 +3076,12 @@ class Locker:
                     my_team = player.get("TeamID")
                     break
             
-            for player in all_players:
-                p_data = process_player(player)
-                if player.get("TeamID") == my_team:
+            # Eşzamanlı (Concurrent) oyuncu analizi
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                processed_players = list(executor.map(process_player, all_players))
+            
+            for p_data in processed_players:
+                if p_data.get("team_id") == my_team:
                     ally_players.append(p_data)
                 else:
                     enemy_players.append(p_data)
@@ -2351,14 +3573,48 @@ def get_data():
                 # v24.1: Robust Ally Party Map (backend fallback)
                 ally_party_ids = [player.get("party_id") for player in p if player.get("party_id")]
 
-                # v37.5: Prefix-based robust matching
-                target_weapons = {
-                    "9c82e19d": "Vandal",
-                    "ee8e8d15": "Phantom",
-                    "1baa85b4": "Ghost",
-                    "a03b24d3": "Operator",
-                    "e336c6b8": "Sheriff"
-                }
+                import re
+                def clean_skin_name(name):
+                    if not name: return name
+                    patterns = [
+                        r'\s*\(?(\d+\.\s*)?([Ss]eviye|[Ll]evel|[Aa]şama)\s*\d*\)?',
+                        r'\s*\(?[Ss]eviye\s*\d+\)?',
+                        r'\s*\(?[Ll]evel\s*\d+\)?',
+                        r'\s*\(?[Aa]şama\s*\d+\)?'
+                    ]
+                    for pat in patterns:
+                        name = re.sub(pat, '', name)
+                    return name.strip()
+
+                ALL_WEAPONS_DEF = [
+                    # Yakın Dövüş (Bıçak en üstte)
+                    {"prefixes": ["2f59173c"], "name": "Bıçak", "name_en": "Melee", "cat": "melee", "cat_name": "Yakın Dövüş", "cat_name_en": "Melee"},
+                    # Tüfekler
+                    {"prefixes": ["9c82e19d"], "name": "Vandal", "name_en": "Vandal", "cat": "rifle", "cat_name": "Tüfek", "cat_name_en": "Rifle"},
+                    {"prefixes": ["ee8e8d15"], "name": "Phantom", "name_en": "Phantom", "cat": "rifle", "cat_name": "Tüfek", "cat_name_en": "Rifle"},
+                    {"prefixes": ["8db0a1bf"], "name": "Warden", "name_en": "Warden", "cat": "rifle", "cat_name": "Tüfek", "cat_name_en": "Rifle"},
+                    {"prefixes": ["ae3de142"], "name": "Bulldog", "name_en": "Bulldog", "cat": "rifle", "cat_name": "Tüfek", "cat_name_en": "Rifle"},
+                    {"prefixes": ["4ade7faa"], "name": "Guardian", "name_en": "Guardian", "cat": "rifle", "cat_name": "Tüfek", "cat_name_en": "Rifle"},
+                    # Tabancalar
+                    {"prefixes": ["29a0cfab"], "name": "Classic", "name_en": "Classic", "cat": "sidearm", "cat_name": "Tabanca", "cat_name_en": "Sidearm"},
+                    {"prefixes": ["1baa85b4"], "name": "Ghost", "name_en": "Ghost", "cat": "sidearm", "cat_name": "Tabanca", "cat_name_en": "Sidearm"},
+                    {"prefixes": ["e336c6b8"], "name": "Sheriff", "name_en": "Sheriff", "cat": "sidearm", "cat_name": "Tabanca", "cat_name_en": "Sidearm"},
+                    {"prefixes": ["44d4e95c", "44d4a956"], "name": "Frenzy", "name_en": "Frenzy", "cat": "sidearm", "cat_name": "Tabanca", "cat_name_en": "Sidearm"},
+                    {"prefixes": ["42da8ccc", "42da8cee"], "name": "Shorty", "name_en": "Shorty", "cat": "sidearm", "cat_name": "Tabanca", "cat_name_en": "Sidearm"},
+                    # Keskin Nişancı
+                    {"prefixes": ["a03b24d3"], "name": "Operator", "name_en": "Operator", "cat": "sniper", "cat_name": "Keskin Nişancı", "cat_name_en": "Sniper"},
+                    {"prefixes": ["5f0aaf7a", "5f0aaf3a"], "name": "Outlaw", "name_en": "Outlaw", "cat": "sniper", "cat_name": "Keskin Nişancı", "cat_name_en": "Sniper"},
+                    {"prefixes": ["c4883e50"], "name": "Marshal", "name_en": "Marshal", "cat": "sniper", "cat_name": "Keskin Nişancı", "cat_name_en": "Sniper"},
+                    # Hafif Makineli
+                    {"prefixes": ["462080d1", "46982852"], "name": "Spectre", "name_en": "Spectre", "cat": "smg", "cat_name": "Hafif Makineli", "cat_name_en": "SMG"},
+                    {"prefixes": ["f7e1b454"], "name": "Stinger", "name_en": "Stinger", "cat": "smg", "cat_name": "Hafif Makineli", "cat_name_en": "SMG"},
+                    # Pompalı
+                    {"prefixes": ["ec845bf4", "ec84293c"], "name": "Judge", "name_en": "Judge", "cat": "shotgun", "cat_name": "Pompalı", "cat_name_en": "Shotgun"},
+                    {"prefixes": ["910be174"], "name": "Bucky", "name_en": "Bucky", "cat": "shotgun", "cat_name": "Pompalı", "cat_name_en": "Shotgun"},
+                    # Ağır Silahlar
+                    {"prefixes": ["63e6c2b6"], "name": "Odin", "name_en": "Odin", "cat": "heavy", "cat_name": "Ağır Silah", "cat_name_en": "Heavy"},
+                    {"prefixes": ["55d8a0f4"], "name": "Ares", "name_en": "Ares", "cat": "heavy", "cat_name": "Ağır Silah", "cat_name_en": "Heavy"},
+                ]
 
                 def enrich_with_skins(player_list):
                     res = []
@@ -2380,9 +3636,10 @@ def get_data():
                         a_name = player.get("agent", "SELECTING")
                         a_obj = {"tr": "Seçiyor...", "en": "Selecting..."}
                         if a_name != "SELECTING" and a_name != "UNKNOWN":
-                            a_obj = {"tr": a_name, "en": a_name} # Agents names are universal mostly
+                            a_obj = {"tr": a_name, "en": a_name}
                         
                         p_data = {
+                            "puuid": player.get("puuid"),
                             "rank": player.get("rank"),
                             "rank_obj": {"tr": RANK_NAMES.get(tier_id, "Bilinmiyor"), "en": RANK_NAMES_EN.get(tier_id, "Unknown")},
                             "kp": player.get("kp", 0),
@@ -2395,7 +3652,9 @@ def get_data():
                             "is_me": player.get("is_me"), "locked": player.get("locked"),
                             "party_id": player.get("party_id"),
                             "vandal": "-", "vandal_img": "", "phantom": "-", "phantom_img": "",
-                            "ghost": "-", "ghost_img": "", "op": "-", "op_img": "", "sheriff": "-", "sheriff_img": ""
+                            "ghost": "-", "ghost_img": "", "op": "-", "op_img": "", "sheriff": "-", "sheriff_img": "",
+                            "all_weapons": [],
+                            "premium_count": 0
                         }
 
                         # Loadout Logic
@@ -2405,69 +3664,101 @@ def get_data():
                             a_uuid = AGENTS[player["agent"]].lower()
                             loadout = next((v for k, v in match_loadouts.items() if k and k.lower() == a_uuid), None)
 
+                        items_map = {}
                         if loadout:
                             items = loadout.get("Guns") or loadout.get("Items") or {}
-                            if isinstance(items, list): items = {g.get("ID"): g for g in items}
-                            
-                            for gun_id, g_data in items.items():
-                                gid_l = str(gun_id).lower()
-                                w_type = next((name for prefix, name in target_weapons.items() if gid_l.startswith(prefix)), None)
-                                if w_type:
-                                    # Dynamic Weapon Asset Sync (v44.8)
-                                    default_icon = WEAPON_ASSETS.get(gid_l[:8], "")
-                                    f_skin = {"tr": "Standart", "en": "Standard", "icon": default_icon}
-                                    is_prem = False
-                                    
-                                    # Check sockets
-                                    for s_val in g_data.get("Sockets", {}).values():
-                                        sid = s_val.get("Item", {}).get("ID", "").lower()
-                                        if sid in SKIN_CACHE:
-                                            sc = SKIN_CACHE[sid]
-                                            f_skin = {"tr": sc["tr"], "en": sc["en"], "icon": sc["icon"]}
-                                            if sid != gid_l: is_prem = True; break
-                                    
-                                    # Fallback to SkinID
-                                    if not is_prem and "SkinID" in g_data:
-                                        sid = g_data["SkinID"].lower()
-                                        if sid in SKIN_CACHE:
-                                            sc = SKIN_CACHE[sid]
-                                            f_skin = {"tr": sc["tr"], "en": sc["en"], "icon": sc["icon"]}
+                            if isinstance(items, list):
+                                items_map = {str(g.get("ID", "")).lower(): g for g in items}
+                            elif isinstance(items, dict):
+                                items_map = {str(k).lower(): v for k, v in items.items()}
 
-                                    # Final Sync & Override (v44.15)
-                                    # v44.9: Clean level indicators from skin names
-                                    import re
-                                    def clean_skin_name(name):
-                                        if not name: return name
-                                        # Precisely remove level/rank indicators without nuking the name
-                                        patterns = [
-                                            r'\s*\(?(\d+\.\s*)?([Ss]eviye|[Ll]evel|[Aa]şama)\s*\d*\)?',
-                                            r'\s*\(?[Ss]eviye\s*\d+\)?',
-                                            r'\s*\(?[Ll]evel\s*\d+\)?',
-                                            r'\s*\(?[Aa]şama\s*\d+\)?'
-                                        ]
-                                        for p in patterns:
-                                            name = re.sub(p, '', name)
-                                        return name.strip()
-                                    
-                                    f_skin["tr"] = clean_skin_name(f_skin.get("tr", ""))
-                                    f_skin["en"] = clean_skin_name(f_skin.get("en", ""))
-                                    
-                                    # Robust Icon & Name Override for Standard Skins
-                                    en_upper = f_skin.get("en", "").upper()
-                                    is_standard = any(kw in en_upper for kw in ["STANDARD", "STANDART"]) or en_upper == w_type.upper()
-                                    
-                                    if not f_skin.get("icon") or is_standard:
-                                        f_skin["icon"] = f_skin.get("icon") or default_icon
-                                        if is_standard:
-                                            f_skin["tr"] = "Standart"
-                                            f_skin["en"] = "Standard"
-                                            f_skin["icon"] = default_icon or f_skin["icon"]
-                                    
-                                    key = {"Vandal": "vandal", "Phantom": "phantom", "Ghost": "ghost", "Operator": "op", "Sheriff": "sheriff"}.get(w_type)
-                                    if key:
-                                        p_data[key+"_obj"] = f_skin
-                                        p_data[key+"_img"] = heal_url(f_skin["icon"])
-                                        # p_data[key] is handled by frontend via _obj
+                        player_weapons = []
+                        premium_count = 0
+
+                        for w_def in ALL_WEAPONS_DEF:
+                            primary_prefix = w_def["prefixes"][0]
+                            default_icon = WEAPON_ASSETS.get(primary_prefix, "")
+                            f_skin = {"tr": "Standart", "en": "Standard", "icon": default_icon}
+                            is_prem = False
+
+                            # Silah verisini bul
+                            g_data = None
+                            matched_prefix = primary_prefix
+                            for pfx in w_def["prefixes"]:
+                                for item_id_lower, d in items_map.items():
+                                    if item_id_lower.startswith(pfx):
+                                        g_data = d
+                                        matched_prefix = pfx
+                                        break
+                                if g_data:
+                                    break
+
+                            if g_data:
+                                # 1. Socket kontrolü
+                                for s_val in g_data.get("Sockets", {}).values():
+                                    sid = s_val.get("Item", {}).get("ID", "").lower()
+                                    if sid in SKIN_CACHE:
+                                        sc = SKIN_CACHE[sid]
+                                        f_skin = {"tr": sc["tr"], "en": sc["en"], "icon": sc["icon"]}
+                                        if not sid.startswith(matched_prefix):
+                                            is_prem = True
+                                        break
+
+                                # 2. SkinID Fallback
+                                if not is_prem and "SkinID" in g_data:
+                                    sid = g_data["SkinID"].lower()
+                                    if sid in SKIN_CACHE:
+                                        sc = SKIN_CACHE[sid]
+                                        f_skin = {"tr": sc["tr"], "en": sc["en"], "icon": sc["icon"]}
+                                        if not sid.startswith(matched_prefix):
+                                            is_prem = True
+
+                            # Temizleme ve override
+                            f_skin["tr"] = clean_skin_name(f_skin.get("tr", ""))
+                            f_skin["en"] = clean_skin_name(f_skin.get("en", ""))
+                            
+                            en_upper = f_skin.get("en", "").upper()
+                            is_standard = any(kw in en_upper for kw in ["STANDARD", "STANDART"]) or en_upper == w_def["name_en"].upper()
+                            
+                            if is_standard:
+                                is_prem = False
+                                f_skin["tr"] = "Standart"
+                                f_skin["en"] = "Standard"
+                                f_skin["icon"] = default_icon or f_skin.get("icon", "")
+                            elif not f_skin.get("icon"):
+                                f_skin["icon"] = default_icon
+
+                            if is_prem:
+                                premium_count += 1
+
+                            w_obj = {
+                                "name": w_def["name"],
+                                "name_en": w_def["name_en"],
+                                "category": w_def["cat"],
+                                "category_name": w_def["cat_name"],
+                                "category_name_en": w_def["cat_name_en"],
+                                "skin_name": f_skin["tr"],
+                                "skin_name_en": f_skin["en"],
+                                "icon": heal_url(f_skin["icon"]),
+                                "is_premium": is_prem
+                            }
+                            player_weapons.append(w_obj)
+
+                            # Ana ekrandaki 5 sütun için geriye dönük uyumluluk
+                            w_en = w_def["name_en"]
+                            if w_en == "Vandal":
+                                p_data["vandal_obj"] = f_skin; p_data["vandal_img"] = heal_url(f_skin["icon"])
+                            elif w_en == "Phantom":
+                                p_data["phantom_obj"] = f_skin; p_data["phantom_img"] = heal_url(f_skin["icon"])
+                            elif w_en == "Ghost":
+                                p_data["ghost_obj"] = f_skin; p_data["ghost_img"] = heal_url(f_skin["icon"])
+                            elif w_en == "Operator":
+                                p_data["op_obj"] = f_skin; p_data["op_img"] = heal_url(f_skin["icon"])
+                            elif w_en == "Sheriff":
+                                p_data["sheriff_obj"] = f_skin; p_data["sheriff_img"] = heal_url(f_skin["icon"])
+
+                        p_data["all_weapons"] = player_weapons
+                        p_data["premium_count"] = premium_count
 
                         res.append(p_data)
                     return res
@@ -2490,6 +3781,10 @@ def get_data():
 
 @app.route('/api/agents')
 def get_agents():
+    global AGENT_DATA
+    if not AGENT_DATA:
+        fetch_agent_database()
+        
     # Gruba göre paketle
     grouped = {}
     for name, info in AGENT_DATA.items():
@@ -2560,10 +3855,12 @@ def run_web_mode():
     console.print("[yellow]Skin veritabanı yükleniyor (TR & EN)...[/yellow]")
     try:
         SKIN_CACHE = {}  # FORCE RESET
-        # Fetch TR
-        r_tr = requests.get("https://valorant-api.com/v1/weapons/skins", params={"language": "tr-TR"}, timeout=20)
-        # Fetch EN
-        r_en = requests.get("https://valorant-api.com/v1/weapons/skins", params={"language": "en-US"}, timeout=20)
+        # Fetch TR & EN concurrently
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            f_tr = executor.submit(requests.get, "https://valorant-api.com/v1/weapons/skins", params={"language": "tr-TR"}, timeout=20)
+            f_en = executor.submit(requests.get, "https://valorant-api.com/v1/weapons/skins", params={"language": "en-US"}, timeout=20)
+            r_tr = f_tr.result()
+            r_en = f_en.result()
         
         if r_tr.status_code == 200 and r_en.status_code == 200:
             data_tr = r_tr.json().get("data", [])
@@ -2613,8 +3910,6 @@ def run_web_mode():
             console.print("[red]Skin API hatası (TR veya EN)[/red]")
     except Exception as e:
         console.print(f"[red]Skin yükleme hatası: {e}[/red]")
-    except Exception as e:
-        console.print(f"[red]Skin yükleme hatası: {e}[/red]")
     
     # WEAPON ASSETS (v44.8 Precision Sync)
     if not WEAPON_ASSETS:
@@ -2644,7 +3939,11 @@ def run_web_mode():
                         break
         except: pass
     
-    # AGENT ASSETS
+    # AGENT ASSETS & DATABASE (v45.0 Auto-Sync)
+    if not AGENT_DATA:
+        fetch_agent_database()
+
+    # AGENT ASSETS Fallback
     if not AGENT_ASSETS:
         try:
             r = requests.get("https://valorant-api.com/v1/agents", params={"isPlayableCharacter": "true"}, timeout=5)
@@ -2668,33 +3967,121 @@ def run_web_mode():
 [/bold red]"""
     console.print(Align.center(ascii_text))
 
-    # Simple Pro Table
-    status_table = Table.grid(expand=False, padding=(0, 2))
-    status_table.add_column(style="dim cyan")
-    status_table.add_column(style="bold white")
+    # Modern Informative Pro Table
+    status_table = Table(box=box.ROUNDED, border_style="cyan", show_header=False, expand=True)
+    status_table.add_column("Key", style="bold cyan", width=14)
+    status_table.add_column("Val", style="bold white")
     
-    status_table.add_row("DURUM", "[green]AKTİF[/green]")
-    status_table.add_row("ADRES", "[underline]http://127.0.0.1:5000[/underline]")
-    status_table.add_row("VERİ", f"{len(SKIN_CACHE)} Skin | {len(AGENT_ASSETS)} Ajan")
-    status_table.add_row("SÜRÜM", "PRO v45.01 Stable")
-    
-    console.print(Align.center(Panel(status_table, title="[bold white]SİSTEM BİLGİSİ[/bold white]", border_style="bright_black", expand=False)))
-    console.print(Align.center("[dim italic]Tarayıcı otomatik açılıyor, Valorant bekleniyor...[/dim italic]\n"))
+    status_table.add_row("DURUM", "[bold green]● ÇEVRİMİÇİ / HAZIR[/bold green]")
+    status_table.add_row("WEB ARAYÜZÜ", "[bold underline cyan]http://127.0.0.1:5000[/bold underline cyan]")
+    status_table.add_row("VERİTABANI", f"[white]{len(SKIN_CACHE)}[/white] [dim]Silah Skini[/dim]  |  [white]{len(AGENT_ASSETS)}[/white] [dim]Ajan[/dim]")
+    status_table.add_row("MOTOR", "[bold magenta]KEPSLOCK PRO ULTRA-LATENCY[/bold magenta]")
+
+    console.print(Align.center(Panel(status_table, title="[bold white]SİSTEM DURUMU[/bold white]", border_style="bright_black", expand=False)))
+    console.print(Align.center("[dim italic]Tarayıcınız otomatik açılıyor... Valorant lobisi bekleniyor...[/dim italic]\n"))
 
     def valo_checker():
         global web_locker
         while True:
             try:
-                if not web_locker:
-                    lockfile = get_lockfile()
-                    if lockfile:
+                lockfile = get_lockfile()
+                if lockfile:
+                    if not web_locker or not getattr(web_locker, 'puuid', None):
                         temp_locker = Locker(lockfile)
                         if temp_locker.connect():
                             web_locker = temp_locker
+                else:
+                    web_locker = None
             except: 
                 web_locker = None
-            time.sleep(5)
+            time.sleep(3)
             
+    def discord_rpc_worker():
+        global DISCORD_RPC
+        if not PYPRESENCE_AVAILABLE:
+            return
+        
+        while True:
+            try:
+                if not DISCORD_RPC:
+                    try:
+                        DISCORD_RPC = Presence(DISCORD_CLIENT_ID)
+                        DISCORD_RPC.connect()
+                    except Exception:
+                        DISCORD_RPC = None
+                        time.sleep(10)
+                        continue
+
+                # Discord Presence Durumunu Belirle
+                details_text = "Valorant InstaLocker"
+                state_text = "Panel Açık // Hazır"
+                large_text = "Valorant InstaLocker PREMIUM v1"
+
+                if web_locker:
+                    try:
+                        core = web_locker.get_coregame()
+                        preg = web_locker.get_pregame()
+                        if core:
+                            # Canlı Skor ve Harita Çekimi
+                            score_info = web_locker.get_live_match_score(core)
+                            m_name = score_info.get("map_name") if score_info else ""
+                            a_sc = score_info.get("ally_score", 0) if score_info else 0
+                            e_sc = score_info.get("enemy_score", 0) if score_info else 0
+                            is_comp = score_info.get("is_competitive", False) if score_info else False
+                            
+                            # Detay Satırı: Harita Adı
+                            if m_name and m_name != "Bilinmiyor":
+                                details_text = f"Harita: {m_name}"
+                            else:
+                                details_text = "Maçta"
+
+                            # Durum Satırı: Sadece Rekabetçi modunda canlı skor göster
+                            if is_comp:
+                                state_text = f"Skor: {a_sc} - {e_sc}"
+                            else:
+                                state_text = "Maç Oynanıyor"
+                        elif preg:
+                            # Ajan seçim ekranında harita tespiti
+                            p_details = web_locker.get_match_details(preg)
+                            preg_map = ""
+                            if p_details and "MapID" in p_details:
+                                m_id_raw = p_details["MapID"]
+                                preg_map = VAL_MAPS.get(m_id_raw, m_id_raw.split('/')[-1] if '/' in m_id_raw else "")
+                            
+                            if preg_map and preg_map != "Bilinmiyor":
+                                details_text = f"Harita: {preg_map}"
+                            else:
+                                details_text = "Ajan Seçim Ekranı"
+                            state_text = "Ajan Seçiliyor..."
+                        else:
+                            details_text = "Lobide // Menüde"
+                            state_text = "Valorant Bağlandı"
+                    except Exception:
+                        pass
+
+                buttons = [
+                    {"label": "Discord Sunucusu", "url": "https://discord.gg/93DSqGVXa2"},
+                    {"label": "GitHub Projesi", "url": "https://github.com/Keplorions/Valorant-InstaLocker"}
+                ]
+
+                DISCORD_RPC.update(
+                    details=details_text,
+                    state=state_text,
+                    start=RPC_START_TIME,
+                    large_text=large_text,
+                    buttons=buttons
+                )
+            except Exception:
+                try:
+                    if DISCORD_RPC:
+                        DISCORD_RPC.close()
+                except Exception:
+                    pass
+                DISCORD_RPC = None
+            
+            time.sleep(15)
+
+    threading.Thread(target=discord_rpc_worker, daemon=True).start()
     threading.Thread(target=valo_checker, daemon=True).start()
     threading.Timer(1.5, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
     
@@ -2702,6 +4089,108 @@ def run_web_mode():
 
 def main():
     os.system('chcp 65001 > nul')
+
+    # ========== BAŞLATMA MODU SEÇİM EKRANI ==========
+    os.system('cls' if os.name == 'nt' else 'clear')
+    ascii_text = """[bold red]
+  ██╗   ██╗ █████╗ ██╗      ██████╗     ██╗      ██████╗  ██████╗██╗  ██╗███████╗██████╗ 
+  ██║   ██║██╔══██╗██║     ██╔═══██╗    ██║     ██╔═══██╗██╔════╝██║ ██╔╝██╔════╝██╔══██╗
+  ██║   ██║███████║██║     ██║   ██║    ██║     ██║   ██║██║     █████╔╝ █████╗  ██████╔╝
+  ╚██╗ ██╔╝██╔══██║██║     ██║   ██║    ██║     ██║   ██║██║     ██╔═██╗ ██╔══╝  ██╔══██╗
+   ╚████╔╝ ██║  ██║███████╗╚██████╔╝    ███████╗╚██████╔╝╚██████╗██║  ██╗███████╗██║  ██║
+[/bold red]"""
+    console.print(Align.center(ascii_text))
+
+    menu_table = Table(box=box.ROUNDED, border_style="bright_black", show_header=False, expand=True)
+    menu_table.add_column("No", style="bold cyan", width=5, justify="center")
+    menu_table.add_column("Mod", style="bold white", width=26)
+    menu_table.add_column("Açıklama", style="dim")
+
+    menu_table.add_row(
+        "[1]",
+        "[bold green]NORMAL MOD[/bold green]",
+        "Normal Valorant oturumu + Web Paneli (Ajan kilitleme, skin/rank takibi aktif)."
+    )
+    menu_table.add_row(
+        "[2]",
+        "[bold red]ÇEVRİMDIŞI MOD + PANEL[/bold red]\n[dim](KEPSLOCK Stealth)[/dim]",
+        "KEPSLOCK motoru ile Valorant açılır (Çevrimdışı) + Web Paneli ve tüm özellikler aktif."
+    )
+    menu_table.add_row(
+        "[3]",
+        "[bold yellow]SADECE ÇEVRİMDIŞI MOD[/bold yellow]\n[dim](Web Arayüzü Yok)[/dim]",
+        "Sadece Valorant'ı gizli modda başlatır ve korur. Tarayıcı/Web arayüzü açılmaz."
+    )
+
+    console.print(Align.center(Panel(menu_table, title="[bold white]BAŞLATMA MODU SEÇİMİ[/bold white]", border_style="red", expand=False)))
+    
+    choice = ""
+    while choice not in ["1", "2", "3"]:
+        try:
+            choice = console.input("\n[bold yellow]Lütfen bir mod seçin [1 / 2 / 3] (Varsayılan 1): [/bold yellow]").strip()
+            if not choice:
+                choice = "1"
+        except (KeyboardInterrupt, EOFError):
+            console.print("\n[yellow]Çıkış yapılıyor...[/yellow]")
+            return
+
+    if choice in ["2", "3"]:
+        console.print("[bold red]⚡ KEPSLOCK Görünmez Mod aktif ediliyor...[/bold red]")
+        if not start_stealth_engine():
+            console.print("[yellow](!) Motor başlatılamadı, normal modda devam ediliyor.[/yellow]")
+        else:
+            console.print("[bold green]✔ Görünmez Mod devrede! Valorant KEPSLOCK motoruyla başlatıldı.[/bold green]")
+            time.sleep(1.5)
+    else:
+        console.print("[bold green]✔ Normal mod ile başlatılıyor.[/bold green]")
+        time.sleep(0.5)
+
+    # 3. SEÇENEK: SADECE ÇEVRİMDIŞI MOD (Web arayüzü açılmaz)
+    if choice == "3":
+        if PYPRESENCE_AVAILABLE:
+            def discord_offline_worker():
+                global DISCORD_RPC
+                try:
+                    if not DISCORD_RPC:
+                        DISCORD_RPC = Presence(DISCORD_CLIENT_ID)
+                        DISCORD_RPC.connect()
+                    DISCORD_RPC.update(
+                        details="Valorant",
+                        state="Görünmez Mod // Çevrimdışı",
+                        start=RPC_START_TIME,
+                        large_text="Valorant InstaLocker (Çevrimdışı)"
+                    )
+                except: pass
+            threading.Thread(target=discord_offline_worker, daemon=True).start()
+
+        os.system('cls' if os.name == 'nt' else 'clear')
+
+        # ASCII Header (Centered)
+        ascii_text = """[bold red]
+  ██╗   ██╗ █████╗ ██╗      ██████╗     ██╗      ██████╗  ██████╗██╗  ██╗███████╗██████╗ 
+  ██║   ██║██╔══██╗██║     ██╔═══██╗    ██║     ██╔═══██╗██╔════╝██║ ██╔╝██╔════╝██╔══██╗
+  ██║   ██║███████║██║     ██║   ██║    ██║     ██║   ██║██║     █████╔╝ █████╗  ██████╔╝
+  ╚██╗ ██╔╝██╔══██║██║     ██║   ██║    ██║     ██║   ██║██║     ██╔═██╗ ██╔══╝  ██╔══██╗
+   ╚████╔╝ ██║  ██║███████╗╚██████╔╝    ███████╗╚██████╔╝╚██████╗██║  ██╗███████╗██║  ██║
+[/bold red]"""
+        console.print(Align.center(ascii_text))
+
+        status_table = Table(box=box.ROUNDED, border_style="yellow", show_header=False, expand=True)
+        status_table.add_column("Key", style="bold yellow", width=14)
+        status_table.add_column("Val", style="bold white")
+        status_table.add_row("DURUM", "[bold green]● GÖRÜNMEZ MOD AKTİF (KEPSLOCK)[/bold green]")
+        status_table.add_row("WEB ARAYÜZÜ", "[dim]KAPALI (Sadece Çevrimdışı)[/dim]")
+        status_table.add_row("BİLGİ", "Arkadaşlarınız sizi çevrimdışı görüyor. Oyunun tadını çıkarın!")
+        status_table.add_row("ÇIKIŞ", "[bold yellow]Programı sonlandırmak için CTRL + C tuşlarına basın.[/bold yellow]")
+        console.print(Align.center(Panel(status_table, title="[bold white]SADECE ÇEVRİMDIŞI MOD[/bold white]", border_style="bright_black", expand=False)))
+        console.print(Align.center("[dim italic]Valorant koruma motoru aktif... İyi oyunlar![/dim italic]\n"))
+        
+        try:
+            while True:
+                time.sleep(1)
+        except (KeyboardInterrupt, EOFError):
+            pass
+        return
 
     # Ajan veritabanını güncelle
     if not fetch_agent_database():
@@ -2717,13 +4206,18 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, EOFError):
         try:
+            stop_stealth_engine()
+            if DISCORD_RPC:
+                DISCORD_RPC.close()
             console.print("\n[bold yellow]👋 Program kapatıldı. İyi oyunlar![/bold yellow]")
         except:
             pass
         os._exit(0)
     except Exception as e:
         try:
+            stop_stealth_engine()
+            if DISCORD_RPC:
+                DISCORD_RPC.close()
             console.print(f"\n[bold red](!) Beklenmedik bir hata oluştu: {e}[/bold red]")
-            input("\nKapatmak için ENTER'a basın...")
         except:
             pass
