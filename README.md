@@ -9,7 +9,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-4bc51d?style=for-the-badge)](LICENSE)
 [![Python: 3.10+](https://img.shields.io/badge/Python-3.10+-3776ab?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Status: Operational](https://img.shields.io/badge/Status-Operational-00f591?style=for-the-badge)](https://github.com/Keplorions/Valorant-InstaLocker)
-[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/93DSqGVXa2)
+[![Downloads](https://img.shields.io/github/downloads/Keplorions/Valorant-InstaLocker/total?style=for-the-badge&color=ff7b00&logo=github)](https://github.com/Keplorions/Valorant-InstaLocker/releases)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/CguCqpgQrd)
 
 ---
 
@@ -192,6 +193,6 @@ Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for more informa
 <div align="center">
 
 **Developed with ❤️ by By'KeplerB & AI Community** 🛡️🚀  
-Join our community on [Discord](https://discord.gg/93DSqGVXa2) for updates, feature requests, and support!
+Join our community on [Discord](https://discord.gg/CguCqpgQrd) for updates, feature requests, and support!
 
 </div>
