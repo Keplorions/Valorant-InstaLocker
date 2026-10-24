@@ -992,7 +992,7 @@ WEB_TEMPLATE = """
         }
         /* Player Skins Showcase Modal */
         .player-skins-modal {
-            display: none; position: fixed; z-index: 2000; left: 0; top: 0;
+            display: none; position: fixed; z-index: 99999; left: 0; top: 0;
             width: 100%; height: 100%; background: rgba(5, 8, 13, 0.85);
             backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
             align-items: center; justify-content: center;
@@ -1622,6 +1622,8 @@ WEB_TEMPLATE = """
         let AGENT_GROUPS = {};
         let CURRENT_MODAL_PLAYER = null;
         let CURRENT_MODAL_FILTER = 'all';
+        let GLOBAL_PARTY_TOTALS = {};
+        let GLOBAL_PARTY_MAP = {};
 
         function t(key) {
             return LANG_DATA[currentLang][key] || key;
@@ -1893,6 +1895,8 @@ WEB_TEMPLATE = """
                         pm[p.party_id] = { i: pIdx++, c: COLORS[(pIdx-2)%COLORS.length] }; 
                     }
                 });
+                GLOBAL_PARTY_TOTALS = pt;
+                GLOBAL_PARTY_MAP = pm;
 
                 if (data.allies) {
                     const me = data.allies.find(p => p.is_me);
@@ -1946,7 +1950,7 @@ WEB_TEMPLATE = """
                     $(summarySelector).text(summaryText);
                 }
             }
-            players.forEach(p => {
+            players.forEach((p, pIdx) => {
                 const kpStyle = p.rank === "Radyant" || p.rank.includes("İmmo") ? "color:#ffb100" : "color:rgba(255,255,255,0.4)";
                 const kpDisplay = (p.kp !== undefined && p.rank !== "Unranked") ? `<div class="rank-kp-v10" style="${kpStyle}">${p.kp} KP</div>` : '';
                 
@@ -2016,7 +2020,8 @@ WEB_TEMPLATE = """
                 const lvlBadgeText = isLvlHidden ? '-' : p.level;
                 const lvlTooltip = isLvlHidden ? t('hidden_level') : ('Level ' + p.level);
 
-                const row = `<div class="player-row ${teamType} ${p.is_me ? 'me' : ''}" onclick="openPlayerModal('${p.puuid}')" title="Detaylı tüm silah ve skin envanterini görmek için tıkla">
+                const pUid = p.puuid || '';
+                const row = `<div class="player-row ${teamType} ${p.is_me ? 'me' : ''}" onclick="openPlayerModal('${pUid}', '${teamType}', ${pIdx})" title="Detaylı tüm silah ve skin envanterini görmek için tıkla">
                     <div class="rank-card">
                         <img src="${p.rank_image}" class="rank-icon-v10">
                         <div class="rank-name-v10">${(p.rank_obj && p.rank_obj[currentLang]) ? p.rank_obj[currentLang] : (p.rank || "Unknown")}</div>
@@ -2041,7 +2046,7 @@ WEB_TEMPLATE = """
                             ${partyTag}
                         </div>
                     </div>
-                    <div class="skin-deck">${skins}</div>
+                    <div class="skin-deck" onclick="openPlayerModal('${pUid}', '${teamType}', ${pIdx}); event.stopPropagation();" title="Detaylı tüm silah ve skin envanterini görmek için tıkla">${skins}</div>
                 </div>`;
                 container.append(row);
             });
@@ -2049,76 +2054,101 @@ WEB_TEMPLATE = """
 
         // CURRENT_MODAL_PLAYER & CURRENT_MODAL_FILTER declared at top
 
-        function openPlayerModal(puuid) {
-            if (!lastData) return;
-            const allPlayers = (lastData.allies || []).concat(lastData.enemies || []);
-            const player = allPlayers.find(p => p.puuid === puuid);
-            if (!player) return;
+        function openPlayerModal(puuid, teamType, playerIdx) {
+            try {
+                if (!lastData) return;
+                const allPlayers = (lastData.allies || []).concat(lastData.enemies || []);
+                let player = null;
+                if (puuid && puuid !== 'undefined' && puuid !== 'null' && puuid !== '') {
+                    player = allPlayers.find(p => p.puuid === puuid);
+                }
+                if (!player && teamType && playerIdx !== undefined) {
+                    const list = teamType === 'ally' ? lastData.allies : lastData.enemies;
+                    if (list && list[playerIdx]) player = list[playerIdx];
+                }
+                if (!player && allPlayers.length > 0) {
+                    player = allPlayers[0];
+                }
+                if (!player) return;
 
-            CURRENT_MODAL_PLAYER = player;
-            CURRENT_MODAL_FILTER = 'all';
+                CURRENT_MODAL_PLAYER = player;
+                CURRENT_MODAL_FILTER = 'all';
 
-            let pName = (player.name_obj && player.name_obj[currentLang]) ? player.name_obj[currentLang] : (player.player_name || player.name || "");
-            const isHiddenPlayer = (player.is_incognito && !player.is_me) || player.is_hidden_name || !pName || pName === "#" || pName === "None#None" || pName.trim() === "" || pName === "Bilinmiyor" || pName === "Unknown" || pName === "Gizli" || pName === "Hidden" || pName.endsWith("#???");
+                let pName = (player.name_obj && player.name_obj[currentLang]) ? player.name_obj[currentLang] : (player.player_name || player.name || "");
+                const isHiddenPlayer = (player.is_incognito && !player.is_me) || player.is_hidden_name || !pName || pName === "#" || pName === "None#None" || pName.trim() === "" || pName === "Bilinmiyor" || pName === "Unknown" || pName === "Gizli" || pName === "Hidden" || pName.endsWith("#???");
 
-            if (isHiddenPlayer) {
-                $('#pm-player-name').text(t('hidden_player'));
-                $('#pm-player-tag').text('');
-            } else {
-                const parts = pName.split('#');
-                $('#pm-player-name').text(parts[0] || t('hidden_player'));
-                $('#pm-player-tag').text(parts[1] ? '#' + parts[1] : '');
+                if (isHiddenPlayer) {
+                    $('#pm-player-name').text(t('hidden_player'));
+                    $('#pm-player-tag').text('');
+                } else {
+                    const parts = pName.split('#');
+                    $('#pm-player-name').text(parts[0] || t('hidden_player'));
+                    $('#pm-player-tag').text(parts[1] ? '#' + parts[1] : '');
+                }
+
+                const agentImg = player.agent_image || (player.agent_uuid ? `https://media.valorant-api.com/agents/${player.agent_uuid}/displayicon.png` : 'https://media.valorant-api.com/agents/add6443a-4571-4c46-bd0a-ce87ee364b67/displayicon.png');
+                $('#pm-agent-img').attr('src', agentImg);
+                
+                if (player.rank_image) {
+                    $('#pm-rank-img').attr('src', player.rank_image).show();
+                } else {
+                    $('#pm-rank-img').hide();
+                }
+
+                const rankName = (player.rank_obj && player.rank_obj[currentLang]) ? player.rank_obj[currentLang] : (player.rank || "Unranked");
+                const kpText = (player.kp !== undefined && player.rank !== "Unranked") ? ` (${player.kp} KP)` : '';
+                const rankImgHtml = player.rank_image ? `<img src="${player.rank_image}" class="badge-rank-icon" alt="">` : '';
+                $('#pm-rank-badge').html(`${rankImgHtml}<span>${rankName}${kpText}</span>`);
+                const isModalLvlHidden = !player.level || player.level === '0' || player.level === 0 || player.hide_level;
+                const lvlModalText = isModalLvlHidden ? `LVL ${t('hidden_level')}` : `LVL ${player.level}`;
+                $('#pm-level-badge').text(lvlModalText);
+
+                const peakName = (player.peak_rank_obj && player.peak_rank_obj[currentLang]) ? player.peak_rank_obj[currentLang] : (player.peak_rank || "");
+                if (peakName && peakName !== "Unranked" && peakName !== "Bilinmiyor" && peakName !== "Unknown") {
+                    const peakLabel = t('peak_rank') || 'PEAK';
+                    const peakImgHtml = player.peak_rank_image ? `<img src="${player.peak_rank_image}" class="badge-rank-icon" alt="">` : '';
+                    $('#pm-peak-badge').html(`${peakImgHtml}<span>${peakLabel}: ${peakName}</span>`).show();
+                } else {
+                    $('#pm-peak-badge').hide();
+                }
+
+                // Robust party label calculation using GLOBAL_PARTY_TOTALS and GLOBAL_PARTY_MAP
+                const partyTotals = (typeof GLOBAL_PARTY_TOTALS !== 'undefined') ? GLOBAL_PARTY_TOTALS : {};
+                const partyMap = (typeof GLOBAL_PARTY_MAP !== 'undefined') ? GLOBAL_PARTY_MAP : {};
+
+                const isPremade = (player.is_premade && player.party_label && player.party_label !== 'SOLO') || 
+                                  (player.party_id && (partyTotals[player.party_id] || 0) > 1);
+                const partyLabel = player.party_label || 
+                                   (player.party_id && partyMap[player.party_id] ? `GRP ${partyMap[player.party_id].i}` : '');
+                const partyText = isPremade ? `${t('party_group')} (${partyLabel || 'PREMADE'})` : t('party_solo');
+                $('#pm-party-badge').text(partyText);
+                if (isPremade && player.party_color) {
+                    $('#pm-party-badge').css({'color': player.party_color, 'border-color': player.party_color, 'background': player.party_color + '18'});
+                } else {
+                    $('#pm-party-badge').css({'color': '', 'border-color': '', 'background': ''});
+                }
+
+                $('#pm-incognito-badge').remove();
+
+                const premCount = player.premium_count || (player.all_weapons || []).filter(w => w.is_premium).length;
+                $('#pm-prem-badge').text(`★ ${premCount} ${t('special_skins')}`);
+
+                renderModalWeaponCards(player.all_weapons || []);
+
+                // Arka plan sayfasının kaymasını engelle
+                document.body.style.overflow = 'hidden';
+
+                const modal = $('#player-skins-modal');
+                modal.css('display', 'flex');
+                setTimeout(() => modal.addClass('is-active'), 10);
+            } catch (err) {
+                console.error("openPlayerModal error:", err);
+                try {
+                    const modal = $('#player-skins-modal');
+                    modal.css('display', 'flex');
+                    setTimeout(() => modal.addClass('is-active'), 10);
+                } catch(e) {}
             }
-
-            const agentImg = player.agent_image || `https://media.valorant-api.com/agents/${player.agent_uuid}/displayicon.png`;
-            $('#pm-agent-img').attr('src', agentImg || 'https://media.valorant-api.com/agents/add6443a-4571-4c46-bd0a-ce87ee364b67/displayicon.png');
-            
-            if (player.rank_image) {
-                $('#pm-rank-img').attr('src', player.rank_image).show();
-            } else {
-                $('#pm-rank-img').hide();
-            }
-
-            const rankName = (player.rank_obj && player.rank_obj[currentLang]) ? player.rank_obj[currentLang] : (player.rank || "Unranked");
-            const kpText = (player.kp !== undefined && player.rank !== "Unranked") ? ` (${player.kp} KP)` : '';
-            const rankImgHtml = player.rank_image ? `<img src="${player.rank_image}" class="badge-rank-icon" alt="">` : '';
-            $('#pm-rank-badge').html(`${rankImgHtml}<span>${rankName}${kpText}</span>`);
-            const isModalLvlHidden = !player.level || player.level === '0' || player.level === 0 || player.hide_level;
-            const lvlModalText = isModalLvlHidden ? `LVL ${t('hidden_level')}` : `LVL ${player.level}`;
-            $('#pm-level-badge').text(lvlModalText);
-
-            const peakName = (player.peak_rank_obj && player.peak_rank_obj[currentLang]) ? player.peak_rank_obj[currentLang] : (player.peak_rank || "");
-            if (peakName && peakName !== "Unranked" && peakName !== "Bilinmiyor" && peakName !== "Unknown") {
-                const peakLabel = t('peak_rank') || 'PEAK';
-                const peakImgHtml = player.peak_rank_image ? `<img src="${player.peak_rank_image}" class="badge-rank-icon" alt="">` : '';
-                $('#pm-peak-badge').html(`${peakImgHtml}<span>${peakLabel}: ${peakName}</span>`).show();
-            } else {
-                $('#pm-peak-badge').hide();
-            }
-
-            const isPremade = (player.is_premade && player.party_label && player.party_label !== 'SOLO') || (player.party_id && pt[player.party_id] > 1);
-            const partyLabel = player.party_label || (player.party_id && pm[player.party_id] ? `GRP ${pm[player.party_id].i}` : '');
-            const partyText = isPremade ? `${t('party_group')} (${partyLabel || 'PREMADE'})` : t('party_solo');
-            $('#pm-party-badge').text(partyText);
-            if (isPremade && player.party_color) {
-                $('#pm-party-badge').css({'color': player.party_color, 'border-color': player.party_color, 'background': player.party_color + '18'});
-            } else {
-                $('#pm-party-badge').css({'color': '', 'border-color': '', 'background': ''});
-            }
-
-            $('#pm-incognito-badge').remove();
-
-            const premCount = player.premium_count || (player.all_weapons || []).filter(w => w.is_premium).length;
-            $('#pm-prem-badge').text(`★ ${premCount} ${t('special_skins')}`);
-
-            renderModalWeaponCards(player.all_weapons || []);
-
-            // Arka plan sayfasının kaymasını engelle
-            document.body.style.overflow = 'hidden';
-
-            const modal = $('#player-skins-modal');
-            modal.css('display', 'flex');
-            setTimeout(() => modal.addClass('is-active'), 10);
         }
 
         function closePlayerModal() {
