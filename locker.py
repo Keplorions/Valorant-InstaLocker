@@ -153,7 +153,7 @@ def fetch_skin_database():
                 
                 # Base skin
                 if uuid: 
-                    SKIN_CACHE[uuid] = {"name": name, "icon": icon}
+                    SKIN_CACHE[uuid] = {"tr": name, "en": name, "name": name, "icon": icon}
                     base_count += 1
                 
                 # Levels
@@ -161,7 +161,7 @@ def fetch_skin_database():
                     item_uuid = item.get("uuid")
                     if item_uuid:
                         item_icon = heal_url(item.get("displayIcon") or item.get("fullRender")) or icon
-                        SKIN_CACHE[item_uuid] = {"name": name, "icon": item_icon}
+                        SKIN_CACHE[item_uuid] = {"tr": name, "en": name, "name": name, "icon": item_icon}
                         level_count += 1
                 
                 # Chromas
@@ -169,7 +169,7 @@ def fetch_skin_database():
                     item_uuid = item.get("uuid")
                     if item_uuid:
                         item_icon = heal_url(item.get("displayIcon") or item.get("fullRender")) or icon
-                        SKIN_CACHE[item_uuid] = {"name": name, "icon": item_icon}
+                        SKIN_CACHE[item_uuid] = {"tr": name, "en": name, "name": name, "icon": item_icon}
                         chroma_count += 1
 
             console.print(f"[green]Skin assets: Base={base_count}, Levels={level_count}, Chromas={chroma_count}, Total={len(SKIN_CACHE)}[/green]")
@@ -462,6 +462,25 @@ WEB_TEMPLATE = """
             font-size: 0.65em; font-weight: 800; margin-top: 3px; color: #ffb100;
             text-transform: uppercase; opacity: 0.8; letter-spacing: 0.5px;
         }
+        .rank-peak-v10 {
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.6em;
+            font-weight: 800;
+            margin-top: 3px;
+            color: #f59e0b;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+            border-radius: 4px;
+            padding: 1px 5px;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            box-shadow: 0 0 6px rgba(245, 158, 11, 0.15);
+            line-height: 1.1;
+        }
 
         /* Profile Layout */
         .profile-card { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 140px; border-right: 1px solid rgba(255,255,255,0.05); }
@@ -508,7 +527,63 @@ WEB_TEMPLATE = """
         }
         .player-name-v9 { font-family: 'Rajdhani', sans-serif; font-size: 1.4em; font-weight: 800; color: #fff; letter-spacing: 1px; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
         .player-name-v9.is-me { color: var(--accent); text-shadow: 0 0 15px var(--accent-glow); }
+        .player-name-v9.is-hidden-name { color: #94a3b8; font-style: italic; }
         .discriminator-v10 { font-size: 0.7em; color: #666; font-weight: 500; margin-left: 2px; }
+        .party-tag {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            padding: 2px 7px 2px 6px;
+            border-radius: 4px;
+            border: 1px solid;
+            width: fit-content;
+            white-space: nowrap;
+            line-height: 1;
+            vertical-align: middle;
+            transition: all 0.2s ease;
+        }
+        .party-tag-dot {
+            width: 5px;
+            height: 5px;
+            min-width: 5px;
+            min-height: 5px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+            position: relative;
+            top: -1px;
+        }
+        .party-tag-text {
+            display: inline-block;
+            line-height: 1;
+        }
+        .incognito-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            padding: 2px 7px 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(244, 63, 94, 0.45);
+            background: rgba(244, 63, 94, 0.12);
+            color: #fb7185;
+            box-shadow: 0 0 8px rgba(244, 63, 94, 0.2);
+            width: fit-content;
+            white-space: nowrap;
+            line-height: 1;
+            vertical-align: middle;
+            transition: all 0.2s ease;
+        }
 
         /* Skin Card */
         .skin-item { 
@@ -980,8 +1055,14 @@ WEB_TEMPLATE = """
             display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap;
         }
         .m-badge {
-            font-size: 0.85em; font-weight: 700; padding: 3px 10px; border-radius: 6px;
+            font-size: 0.85em; font-weight: 800; padding: 4px 10px 4px 8px; border-radius: 6px;
             letter-spacing: 0.8px; text-transform: uppercase;
+            display: inline-flex; align-items: center; gap: 6px; line-height: 1;
+        }
+        .badge-rank-icon {
+            width: 18px; height: 18px; min-width: 18px; min-height: 18px;
+            object-fit: contain; filter: drop-shadow(0 0 4px rgba(0,0,0,0.7));
+            flex-shrink: 0;
         }
         .m-badge-rank { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; }
         .m-badge-level { background: rgba(0, 245, 145, 0.1); border: 1px solid rgba(0, 245, 145, 0.3); color: var(--success); }
@@ -1211,7 +1292,8 @@ WEB_TEMPLATE = """
                         </h2>
                         <div class="modal-badges-row">
                             <span class="m-badge m-badge-rank" id="pm-rank-badge">Unranked</span>
-                            <span class="m-badge m-badge-level" id="pm-level-badge">LVL 0</span>
+                            <span class="m-badge m-badge-peak" id="pm-peak-badge" style="display:none; color:#f59e0b; border-color:rgba(245,158,11,0.4); background:rgba(245,158,11,0.12);">PEAK</span>
+                            <span class="m-badge m-badge-level" id="pm-level-badge">LVL -</span>
                             <span class="m-badge m-badge-party" id="pm-party-badge">SOLO</span>
                             <span class="m-badge m-badge-premium" id="pm-prem-badge">★ 0 ÖZEL SKİN</span>
                         </div>
@@ -1468,8 +1550,11 @@ WEB_TEMPLATE = """
                 'special_skins': 'ÖZEL SKİN',
                 'party_group': 'GRUP',
                 'party_solo': 'SOLO',
+                'peak_rank': 'ZİRVE',
                 'map': 'HARİTA',
                 'unknown': 'Bilinmiyor',
+                'hidden_player': 'Gizli',
+                'hidden_level': 'Gizli',
                 'afk_modal_title': 'ANTI-AFK SİSTEMİ BİLGİLENDİRMESİ',
                 'afk_card1_title': '🛡️ NASIL ÇALIŞIR?',
                 "afk_card1_desc": "Bilgisayar başından ayrıldığınızda veya oyunu simge durumuna küçülttüğünüzde, arka planda güvenli Windows API çağrıları üzerinden periyodik ve doğal insan ritminde tuş vuruşları simüle eder. Böylece Valorant AFK ceza sistemine takılmazsınız.",
@@ -1509,8 +1594,11 @@ WEB_TEMPLATE = """
                 'special_skins': 'SPECIAL SKIN',
                 'party_group': 'PARTY',
                 'party_solo': 'SOLO',
+                'peak_rank': 'PEAK',
                 'map': 'MAP',
                 'unknown': 'Unknown',
+                'hidden_player': 'Hidden',
+                'hidden_level': 'Hidden',
                 'afk_modal_title': 'ANTI-AFK SYSTEM OVERVIEW',
                 'afk_card1_title': '🛡️ HOW DOES IT WORK?',
                 'afk_card1_desc': 'When you step away from your PC or minimize the game, the system simulates periodic, human-like keystrokes via native Windows APIs in the background. This prevents Valorant from triggering idle/AFK penalties.',
@@ -1797,8 +1885,14 @@ WEB_TEMPLATE = """
                 const pt = {};
                 allPlayers.forEach(p => { if (p.party_id && p.party_id !== "00000000-0000-0000-0000-000000000000") pt[p.party_id] = (pt[p.party_id] || 0) + 1; });
                 const pm = {}; let pIdx = 1;
-                const COLORS = ['#ff4655', '#2ecc71', '#3498db', '#f1c40f', '#9b59b6', '#e67e22'];
-                allPlayers.forEach(p => { if (p.party_id && pt[p.party_id] > 1 && !pm[p.party_id]) pm[p.party_id] = { i: pIdx++, c: COLORS[(pIdx-2)%COLORS.length] }; });
+                const COLORS = ['#ff4655', '#00f591', '#00d4ff', '#ffb700', '#c084fc', '#fb923c'];
+                allPlayers.forEach(p => { 
+                    if (p.is_premade && p.party_label) {
+                        pm[p.party_id] = { i: p.party_label.replace('GRP ', ''), c: p.party_color || COLORS[(pIdx-1)%COLORS.length] };
+                    } else if (p.party_id && pt[p.party_id] > 1 && !pm[p.party_id]) {
+                        pm[p.party_id] = { i: pIdx++, c: COLORS[(pIdx-2)%COLORS.length] }; 
+                    }
+                });
 
                 if (data.allies) {
                     const me = data.allies.find(p => p.is_me);
@@ -1834,14 +1928,47 @@ WEB_TEMPLATE = """
                 return;
             }
             if (summarySelector) {
-                let s = 0, g = new Set();
-                players.forEach(p => { if (p.party_id && pm[p.party_id]) g.add(p.party_id); else s++; });
-                $(summarySelector).text(`${g.size} GROUPS | ${s} SOLO`);
+                if (teamType === 'enemy') {
+                    $(summarySelector).text("");
+                } else {
+                    let s = 0, g = new Set();
+                    (players || []).forEach(p => { 
+                        if (p.is_premade && p.party_label && p.party_label !== "SOLO") {
+                            g.add(p.party_label);
+                        } else if (p.party_id && pm[p.party_id]) {
+                            g.add(pm[p.party_id].i);
+                        } else {
+                            s++;
+                        }
+                    });
+                    const groupCount = g.size;
+                    const summaryText = currentLang === 'tr' ? `${groupCount} GRUP | ${s} TEK` : `${groupCount} GROUPS | ${s} SOLO`;
+                    $(summarySelector).text(summaryText);
+                }
             }
             players.forEach(p => {
                 const kpStyle = p.rank === "Radyant" || p.rank.includes("İmmo") ? "color:#ffb100" : "color:rgba(255,255,255,0.4)";
                 const kpDisplay = (p.kp !== undefined && p.rank !== "Unranked") ? `<div class="rank-kp-v10" style="${kpStyle}">${p.kp} KP</div>` : '';
-                const partyTag = (p.party_id && pm[p.party_id]) ? `<div class="party-tag" style="color:${pm[p.party_id].c}; border-color:${pm[p.party_id].c}">GRP ${pm[p.party_id].i}</div>` : '';
+                
+                let peakDisplay = '';
+                const pPeak = (p.peak_rank_obj && p.peak_rank_obj[currentLang]) ? p.peak_rank_obj[currentLang] : (p.peak_rank || "");
+                if (pPeak && pPeak !== "Unranked" && pPeak !== "Bilinmiyor" && pPeak !== "Unknown") {
+                    const peakIconHtml = p.peak_rank_image ? `<img src="${p.peak_rank_image}" style="width:11px; height:11px; object-fit:contain; filter:drop-shadow(0 0 2px rgba(0,0,0,0.8)); flex-shrink:0;">` : '';
+                    peakDisplay = `<div class="rank-peak-v10" title="Kariyer Zirve: ${pPeak}">${peakIconHtml}<span>${pPeak}</span></div>`;
+                }
+                
+                let partyTag = '';
+                if (teamType !== 'enemy') {
+                    if (p.is_premade && p.party_label && p.party_label !== "SOLO") {
+                        const c = p.party_color || '#8b5cf6';
+                        partyTag = `<span class="party-tag" style="color:${c}; border-color:${c}55; background:${c}18; box-shadow:0 0 8px ${c}22;"><span class="party-tag-dot" style="background:${c}; box-shadow:0 0 5px ${c};"></span><span class="party-tag-text">${p.party_label}</span></span>`;
+                    } else if (p.party_id && pm[p.party_id]) {
+                        const c = pm[p.party_id].c || '#8b5cf6';
+                        partyTag = `<span class="party-tag" style="color:${c}; border-color:${c}55; background:${c}18; box-shadow:0 0 8px ${c}22;"><span class="party-tag-dot" style="background:${c}; box-shadow:0 0 5px ${c};"></span><span class="party-tag-text">GRP ${pm[p.party_id].i}</span></span>`;
+                    }
+                }
+                
+                let incognitoTag = '';
                 
                 const skins = ['vandal', 'phantom', 'ghost', 'op', 'sheriff'].map(w => {
                     const skinData = p[w+'_obj'] || {};
@@ -1870,18 +1997,31 @@ WEB_TEMPLATE = """
                 } else {
                     agentSrc = mysteryAgent;
                 }
-                let pNameBase = p.player_name || p.name || "Gizli";
-                if (!pNameBase || pNameBase === "#" || pNameBase === "None#None" || pNameBase.trim() === "" || pNameBase.includes("Gizli") || pNameBase === "Bilinmiyor") {
-                    pNameBase = "Gizli";
+                let pNameBase = (p.name_obj && p.name_obj[currentLang]) ? p.name_obj[currentLang] : (p.player_name || p.name || "");
+                const isHiddenName = (p.is_incognito && !p.is_me) || p.is_hidden_name || !pNameBase || pNameBase === "#" || pNameBase === "None#None" || pNameBase.trim() === "" || pNameBase === "Bilinmiyor" || pNameBase === "Unknown" || pNameBase === "Gizli" || pNameBase === "Hidden" || pNameBase.endsWith("#???");
+                
+                let pDisplayName = "";
+                let pTagDisplay = "";
+                if (isHiddenName) {
+                    pDisplayName = t('hidden_player');
+                    pTagDisplay = "";
+                } else {
+                    const pNameParts = pNameBase.split('#');
+                    pDisplayName = pNameParts[0];
+                    pTagDisplay = pNameParts[1] ? '#' + pNameParts[1] : '';
                 }
-                const pNameParts = pNameBase.split('#');
-                const pNameDisplay = `<span class="player-name-v9 ${p.is_me ? 'is-me' : ''}">${pNameParts[0]}</span><span class="discriminator-v10">${pNameParts[1] ? '#' + pNameParts[1] : ''}</span>`;
+                const pNameDisplay = `<span class="player-name-v9 ${p.is_me ? 'is-me' : ''} ${isHiddenName ? 'is-hidden-name' : ''}">${pDisplayName}</span><span class="discriminator-v10">${pTagDisplay}</span>`;
+
+                const isLvlHidden = !p.level || p.level === "0" || p.level === 0 || p.hide_level;
+                const lvlBadgeText = isLvlHidden ? '-' : p.level;
+                const lvlTooltip = isLvlHidden ? t('hidden_level') : ('Level ' + p.level);
 
                 const row = `<div class="player-row ${teamType} ${p.is_me ? 'me' : ''}" onclick="openPlayerModal('${p.puuid}')" title="Detaylı tüm silah ve skin envanterini görmek için tıkla">
                     <div class="rank-card">
                         <img src="${p.rank_image}" class="rank-icon-v10">
                         <div class="rank-name-v10">${(p.rank_obj && p.rank_obj[currentLang]) ? p.rank_obj[currentLang] : (p.rank || "Unknown")}</div>
                         ${kpDisplay}
+                        ${peakDisplay}
                     </div>
                     <div class="profile-card">
                         <div class="agent-box-v13 ${p.agent === "SELECTING" ? 'is-selecting' : ''}">
@@ -1890,14 +2030,16 @@ WEB_TEMPLATE = """
                         </div>
                         <div style="display:flex; align-items:center; gap:8px; margin-top:2px;">
                             <div class="agent-name-v10">${agentName}</div>
-                            <div class="level-badge">${p.level || "0"}</div>
+                            <div class="level-badge" title="${lvlTooltip}">${lvlBadgeText}</div>
                         </div>
                     </div>
                     <div class="info-block">
-                        <div style="display:flex; align-items:center;">
-                            ${pNameDisplay}
+                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                            <div style="display:flex; align-items:baseline;">
+                                ${pNameDisplay}
+                            </div>
+                            ${partyTag}
                         </div>
-                        <div style="margin-top:5px;">${partyTag}</div>
                     </div>
                     <div class="skin-deck">${skins}</div>
                 </div>`;
@@ -1916,13 +2058,17 @@ WEB_TEMPLATE = """
             CURRENT_MODAL_PLAYER = player;
             CURRENT_MODAL_FILTER = 'all';
 
-            let pName = player.player_name || player.name || "Gizli";
-            if (!pName || pName === "#" || pName === "None#None" || pName.trim() === "" || pName.includes("Gizli") || pName === "Bilinmiyor") {
-                pName = "Gizli";
+            let pName = (player.name_obj && player.name_obj[currentLang]) ? player.name_obj[currentLang] : (player.player_name || player.name || "");
+            const isHiddenPlayer = (player.is_incognito && !player.is_me) || player.is_hidden_name || !pName || pName === "#" || pName === "None#None" || pName.trim() === "" || pName === "Bilinmiyor" || pName === "Unknown" || pName === "Gizli" || pName === "Hidden" || pName.endsWith("#???");
+
+            if (isHiddenPlayer) {
+                $('#pm-player-name').text(t('hidden_player'));
+                $('#pm-player-tag').text('');
+            } else {
+                const parts = pName.split('#');
+                $('#pm-player-name').text(parts[0] || t('hidden_player'));
+                $('#pm-player-tag').text(parts[1] ? '#' + parts[1] : '');
             }
-            const parts = pName.split('#');
-            $('#pm-player-name').text(parts[0] || 'Gizli');
-            $('#pm-player-tag').text(parts[1] ? '#' + parts[1] : '');
 
             const agentImg = player.agent_image || `https://media.valorant-api.com/agents/${player.agent_uuid}/displayicon.png`;
             $('#pm-agent-img').attr('src', agentImg || 'https://media.valorant-api.com/agents/add6443a-4571-4c46-bd0a-ce87ee364b67/displayicon.png');
@@ -1935,11 +2081,32 @@ WEB_TEMPLATE = """
 
             const rankName = (player.rank_obj && player.rank_obj[currentLang]) ? player.rank_obj[currentLang] : (player.rank || "Unranked");
             const kpText = (player.kp !== undefined && player.rank !== "Unranked") ? ` (${player.kp} KP)` : '';
-            $('#pm-rank-badge').text(rankName + kpText);
-            $('#pm-level-badge').text(`LVL ${player.level || '0'}`);
+            const rankImgHtml = player.rank_image ? `<img src="${player.rank_image}" class="badge-rank-icon" alt="">` : '';
+            $('#pm-rank-badge').html(`${rankImgHtml}<span>${rankName}${kpText}</span>`);
+            const isModalLvlHidden = !player.level || player.level === '0' || player.level === 0 || player.hide_level;
+            const lvlModalText = isModalLvlHidden ? `LVL ${t('hidden_level')}` : `LVL ${player.level}`;
+            $('#pm-level-badge').text(lvlModalText);
 
-            const partyText = player.party_id ? t('party_group') : t('party_solo');
+            const peakName = (player.peak_rank_obj && player.peak_rank_obj[currentLang]) ? player.peak_rank_obj[currentLang] : (player.peak_rank || "");
+            if (peakName && peakName !== "Unranked" && peakName !== "Bilinmiyor" && peakName !== "Unknown") {
+                const peakLabel = t('peak_rank') || 'PEAK';
+                const peakImgHtml = player.peak_rank_image ? `<img src="${player.peak_rank_image}" class="badge-rank-icon" alt="">` : '';
+                $('#pm-peak-badge').html(`${peakImgHtml}<span>${peakLabel}: ${peakName}</span>`).show();
+            } else {
+                $('#pm-peak-badge').hide();
+            }
+
+            const isPremade = (player.is_premade && player.party_label && player.party_label !== 'SOLO') || (player.party_id && pt[player.party_id] > 1);
+            const partyLabel = player.party_label || (player.party_id && pm[player.party_id] ? `GRP ${pm[player.party_id].i}` : '');
+            const partyText = isPremade ? `${t('party_group')} (${partyLabel || 'PREMADE'})` : t('party_solo');
             $('#pm-party-badge').text(partyText);
+            if (isPremade && player.party_color) {
+                $('#pm-party-badge').css({'color': player.party_color, 'border-color': player.party_color, 'background': player.party_color + '18'});
+            } else {
+                $('#pm-party-badge').css({'color': '', 'border-color': '', 'background': ''});
+            }
+
+            $('#pm-incognito-badge').remove();
 
             const premCount = player.premium_count || (player.all_weapons || []).filter(w => w.is_premium).length;
             $('#pm-prem-badge').text(`★ ${premCount} ${t('special_skins')}`);
@@ -2244,13 +2411,20 @@ def release_key(hexKeyCode):
 
 
 def get_lockfile():
-    path = os.path.join(os.getenv('LOCALAPPDATA'), 'Riot Games', 'Riot Client', 'Config', 'lockfile')
-    try:
-        with open(path, 'r') as f:
-            data = f.read().split(':')
-            return {'port': data[2], 'password': data[3]}
-    except:
+    local_app_data = os.getenv('LOCALAPPDATA')
+    if not local_app_data:
         return None
+    path = os.path.join(local_app_data, 'Riot Games', 'Riot Client', 'Config', 'lockfile')
+    try:
+        if not os.path.exists(path):
+            return None
+        with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+            data = f.read().strip().split(':')
+            if len(data) >= 4:
+                return {'port': data[2], 'password': data[3]}
+    except Exception:
+        pass
+    return None
 
 
 class Locker:
@@ -2263,6 +2437,9 @@ class Locker:
         self.headers = {"Authorization": f"Basic {self.auth}"}
         self.session = requests.Session()
         self.session.verify = False
+        adapter = requests.adapters.HTTPAdapter(pool_connections=25, pool_maxsize=25, max_retries=1)
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
         
         self.puuid = None
         self.access_token = None
@@ -2270,53 +2447,26 @@ class Locker:
         self.version = None
         self.shard = "eu" # Varsayılan EU (TR)
         self.region = "eu"
-        self._name_cache = {} # Kalıcı isim önbelleği
+        self._name_cache = {} # Sadece RAM / Hafıza isim önbelleği (Diske yazılmaz, tertemiz)
         self._rank_cache = {} # Kalıcı rütbe önbelleği
         self._tier_cache = {} # Kalıcı tier id önbelleği
         self._kp_cache = {}   # v38.0: Kalıcı KP önbelleği
         self._level_cache = {} # Kalıcı seviye önbelleği
-        
-    def get_player_rank(self, puuid):
-        """Oyuncunun Competitive Rank bilgisini ve Tier ID'sini al"""
-        try:
-            # Önce cache kontrolü
-            if puuid in self._rank_cache and puuid in self._tier_cache:
-                return self._rank_cache[puuid]
+        self._peak_tier_cache = {} # Kariyer zirve rütbe önbelleği
+        self._bg_resolving = set()
 
-            url = f"https://pd.{self.shard}.a.pvp.net/mmr/v1/players/{puuid}"
-            headers = self.get_headers()
-            r = self.session.get(url, headers=headers, verify=False)
-            
-            if r.status_code == 200:
-                data = r.json()
-                # En son oynanan sezon veya güncel veriler
-                queue_skills = data.get("QueueSkills", {}).get("competitive", {})
-                tier = queue_skills.get("TierAfterUpdate", 0) # Eğer maç oynamamışsa 0 dönebilir
-                
-                # Seasonal Info
-                # Bazen QueueSkills boştur, LatestCompetitiveUpdate'e bakmak gerekir
-                if tier == 0:
-                     # Basitçe 0 diyelim
-                     pass
+    def cache_name(self, puuid, name):
+        if not puuid or not name:
+            return
+        invalid = {"Bilinmiyor", "#", "?#?", "None#None", "Unknown", "", "Gizli"}
+        if name in invalid or name.endswith("#???") or "(Gizli)" in name:
+            return
+        # Sadece RAM'de tut
+        self._name_cache[puuid] = name
 
-                # Cache updates
-                self._tier_cache[puuid] = tier
-                
-                # Rank Name
-                # RANK_NAMES global dictionary is needed in locker.py context, assume it exists or use fallback
-                # But actually we have a RANK_NAMES map likely defined somewhere? 
-                # If not, let's assume we return a string based on Tier ID logic or just unknown
-                # Checking code: line 803 uses RANK_NAMES.
-                try:
-                    rank_name = RANK_NAMES.get(tier, "Unranked")
-                except:
-                    rank_name = f"Tier {tier}"
-                    
-                self._rank_cache[puuid] = rank_name
-                return rank_name
-        except:
-            pass
-        return "Bilinmiyor"
+    def start_background_name_resolver(self, missing_puuids, match_id=None):
+        """Gizli moddaki oyuncuların tercihlerine saygı duyulur, arka planda isim çözme zorlaması yapılmaz"""
+        pass
 
     def connect(self):
         try:
@@ -2508,7 +2658,7 @@ class Locker:
         results = {}
         to_fetch = []
         
-        invalid_names = {"Bilinmiyor", "#", "?#?", "None#None", "Unknown", ""}
+        invalid_names = {"Bilinmiyor", "#", "?#?", "None#None", "Unknown", "", "Gizli"}
         
         for puuid in puuids:
             if not puuid:
@@ -2522,56 +2672,55 @@ class Locker:
         if not to_fetch:
             return results
 
-        # 1. Aşama: Remote PVP Name Service (PUT /name-service/v2/players)
+        # 1. Aşama: Yerel Chat Participants & Presences (/chat/v5/participants)
         try:
-            url = f"https://pd.{self.shard}.a.pvp.net/name-service/v2/players"
-            r = self.session.put(url, headers=self.get_headers(), json=to_fetch, verify=False)
-            if r.status_code == 200:
-                data = r.json()
-                for player in data:
-                    puuid = player.get('Subject')
-                    g_name = player.get('GameName')
-                    t_line = player.get('TagLine')
-                    d_name = player.get('DisplayName')
-                    
-                    full_name = None
-                    if g_name and t_line:
-                        full_name = f"{g_name}#{t_line}"
-                    elif d_name and "#" in d_name:
-                        full_name = d_name
-                    elif g_name:
-                        full_name = f"{g_name}#???"
-                    
-                    if full_name and full_name not in invalid_names and puuid:
-                        self._name_cache[puuid] = full_name
-                        results[puuid] = full_name
-        except:
+            r_cp = self.session.get(f"{self.base_url}/chat/v5/participants", headers=self.headers, verify=False, timeout=1.5)
+            if r_cp.status_code == 200:
+                for cp in r_cp.json().get("participants", []):
+                    c_puuid = cp.get("puuid")
+                    c_name = cp.get("game_name")
+                    c_tag = cp.get("game_tag")
+                    if c_puuid and c_name and c_tag and f"{c_name}#{c_tag}" not in invalid_names:
+                        full_name = f"{c_name}#{c_tag}"
+                        self.cache_name(c_puuid, full_name)
+                        if c_puuid in to_fetch:
+                            results[c_puuid] = full_name
+        except Exception:
             pass
 
-        # 2. Aşama: Local Riot Client Chat Names Fallback (/chat/v4/names)
-        missing = [p for p in to_fetch if p not in results]
-        if missing:
+        # 2. Aşama: Remote PVP Name Service (PUT /name-service/v2/players)
+        rem_fetch = [p for p in to_fetch if p not in results]
+        if rem_fetch:
             try:
-                auth = base64.b64encode(f"riot:{self.password}".encode()).decode()
-                local_headers = {"Authorization": f"Basic {auth}"}
-                r_local = self.session.put(f"{self.base_url}/chat/v4/names", headers=local_headers, json=missing, verify=False)
-                if r_local.status_code == 200:
-                    for item in r_local.json():
-                        p_id = item.get("id") or item.get("puuid")
-                        g_name = item.get("game_name")
-                        t_line = item.get("game_tag")
-                        if p_id and g_name and t_line:
+                url = f"https://pd.{self.shard}.a.pvp.net/name-service/v2/players"
+                r = self.session.put(url, headers=self.get_headers(), json=rem_fetch, verify=False, timeout=3)
+                if r.status_code == 200:
+                    data = r.json()
+                    for player in data:
+                        puuid = player.get('Subject')
+                        g_name = player.get('GameName')
+                        t_line = player.get('TagLine')
+                        d_name = player.get('DisplayName')
+                        
+                        full_name = None
+                        # Sadece GERÇEK ve ETİKETLİ Riot ID geçerlidir!
+                        if g_name and t_line and str(t_line).strip():
                             full_name = f"{g_name}#{t_line}"
-                            if full_name not in invalid_names:
-                                self._name_cache[p_id] = full_name
-                                results[p_id] = full_name
-            except:
+                        elif d_name and "#" in d_name and not d_name.startswith("#") and not d_name.endswith("#"):
+                            full_name = d_name
+                        
+                        # Eğer oyuncu gizli moddaysa ve Riot etiketi boş döndüyse (#???),
+                        # ASLA bunu çözülmüş isim sayma, missing listesinde kalsın ki çözülsün!
+                        if full_name and full_name not in invalid_names and not full_name.endswith("#???") and puuid:
+                            self.cache_name(puuid, full_name)
+                            results[puuid] = full_name
+            except Exception:
                 pass
 
-        # Eksik kalanlar
+        # Eksik kalan veya gizli isimler için "Gizli" ata
         for puuid in to_fetch:
             if puuid not in results:
-                results[puuid] = "Bilinmiyor"
+                results[puuid] = "Gizli"
         
         return results
 
@@ -2644,11 +2793,11 @@ class Locker:
         return {}
 
     def get_player_rank(self, puuid):
-        """Oyuncunun rütbe (MMR) ve KP bilgisini al"""
+        """Oyuncunun rütbe (MMR), KP ve Kariyer Zirve (Peak) bilgisini al"""
         try:
             url = f"https://pd.{self.shard}.a.pvp.net/mmr/v1/players/{puuid}"
             headers = self.get_headers()
-            r = self.session.get(url, headers=headers, verify=False)
+            r = self.session.get(url, headers=headers, verify=False, timeout=3)
             
             if r.status_code == 200:
                 data = r.json()
@@ -2670,19 +2819,37 @@ class Locker:
                     except: pass
                 
                 # 3. Yol: Seasonal Info
-                if tier == 0:
+                seasonal = data.get("QueueSkills", {}).get("competitive", {}).get("SeasonalInfoBySeasonID", {})
+                if tier == 0 and seasonal:
                     try:
-                        seasonal = data.get("QueueSkills", {}).get("competitive", {}).get("SeasonalInfoBySeasonID", {})
-                        if seasonal:
-                            for s_id, s_info in seasonal.items():
-                                s_tier = s_info.get("CompetitiveTier", 0)
-                                if s_tier > tier: 
-                                    tier = s_tier
-                                    kp = s_info.get("RankedRating", 0)
+                        for s_id, s_info in seasonal.items():
+                            s_tier = s_info.get("CompetitiveTier", 0)
+                            if s_tier > tier: 
+                                tier = s_tier
+                                kp = s_info.get("RankedRating", 0)
                     except: pass
                 
+                # 4. Yol: Peak Tier (Kariyer Zirve Derecesi)
+                max_tier = tier
+                if seasonal:
+                    try:
+                        for s_id, s_info in seasonal.items():
+                            s_tier = s_info.get("CompetitiveTier", 0)
+                            if s_tier > max_tier:
+                                max_tier = s_tier
+                            for t_str in (s_info.get("WinsByTier") or {}).keys():
+                                try:
+                                    t_int = int(t_str)
+                                    if t_int > max_tier:
+                                        max_tier = t_int
+                                except: pass
+                    except: pass
+
                 self._tier_cache[puuid] = tier
                 self._kp_cache[puuid] = kp
+                if not hasattr(self, "_peak_tier_cache"):
+                    self._peak_tier_cache = {}
+                self._peak_tier_cache[puuid] = max_tier
                 
                 return RANK_NAMES.get(tier, "Unranked")
         except:
@@ -2694,16 +2861,33 @@ class Locker:
         
     def get_parties_from_presence(self):
         """Yerel Riot Client üzerinden party ve rank bilgilerini çek"""
+        presence_map = {}
         try:
             auth = base64.b64encode(f"riot:{self.password}".encode()).decode()
             local_headers = {"Authorization": f"Basic {auth}"}
             
-            # /chat/v4/presences bazen kısıtlıdır, alternatifleri de tarayalım
+            # 0. /chat/v5/participants üzerinden katılımcı ve isim tespiti
+            try:
+                r_cp = self.session.get(f"{self.base_url}/chat/v5/participants", headers=local_headers, verify=False, timeout=1.5)
+                if r_cp.status_code == 200:
+                    for cp in r_cp.json().get("participants", []):
+                        p_uid = cp.get("puuid")
+                        p_gn = cp.get("game_name")
+                        p_gt = cp.get("game_tag")
+                        if p_uid and p_gn and p_gt:
+                            c_fullname = f"{p_gn}#{p_gt}"
+                            self.cache_name(p_uid, c_fullname)
+                            if p_uid not in presence_map:
+                                presence_map[p_uid] = {"name": c_fullname, "rank": 0, "level": 0, "party_id": ""}
+                            else:
+                                presence_map[p_uid]["name"] = c_fullname
+            except Exception:
+                pass
+
+            # 1. /chat/v4/presences
             r = self.session.get(f"{self.base_url}/chat/v4/presences", headers=local_headers, verify=False)
             if r.status_code == 200:
                 presences = r.json().get("presences", [])
-                
-                presence_map = {}
                 for p in presences:
                     puuid = p.get("puuid")
                     g_name = p.get("game_name")
@@ -2717,69 +2901,46 @@ class Locker:
                     private_b64 = p.get("private")
                     if puuid and private_b64:
                         try:
-                            # Base64 decode ve JSON parse
                             decoded = json.loads(base64.b64decode(private_b64).decode())
-                            
-                            # Rütbe tespiti (Çoklu anahtar kontrolü)
                             rank = decoded.get("competitiveTier", 0)
                             if rank == 0: rank = decoded.get("rankedTier", 0)
                             if rank == 0: rank = decoded.get("rank", 0)
                             
-                            # PARTY ID TESPİTİ (En kritik kısım)
-                            # Riot farklı sürümlerde farklı anahtarlar kullanabiliyor
-                            party_id = decoded.get("partyId")
-                            if not party_id: party_id = decoded.get("partyID")
-                            if not party_id: party_id = decoded.get("party_id")
-                            if not party_id: party_id = decoded.get("l_partyId") # Bazı leaklerde görülen format
-                            
-                            # Fallback: matchPresenceData içinden ayıkla
-                            if not party_id and "matchPresenceData" in decoded:
-                                party_id = decoded["matchPresenceData"].get("partyId")
+                            # PARTY ID TESPİTİ (partyPresenceData ve varyasyonları)
+                            p_pres = decoded.get("partyPresenceData") or {}
+                            party_id = (
+                                decoded.get("partyId")
+                                or decoded.get("partyID")
+                                or decoded.get("party_id")
+                                or decoded.get("l_partyId")
+                                or p_pres.get("partyId")
+                                or p_pres.get("partyID")
+                                or (decoded.get("matchPresenceData") or {}).get("partyId")
+                                or ""
+                            )
+                            if party_id == "00000000-0000-0000-0000-000000000000":
+                                party_id = ""
+
+                            pres_lvl = decoded.get("accountLevel", 0)
+                            if pres_lvl and pres_lvl > 0:
+                                if not hasattr(self, "_level_cache"):
+                                    self._level_cache = {}
+                                self._level_cache[puuid] = pres_lvl
+                                self._level_cache[f"lvl_{puuid}"] = pres_lvl
 
                             presence_map[puuid] = {
                                 "name": p_name,
                                 "rank": rank,
-                                "level": decoded.get("accountLevel", 0),
+                                "level": pres_lvl,
                                 "party_id": party_id
                             }
                         except: continue
-                # 2. Alternatif: /presence/v1/presences (Bazen daha kapsayıcıdır)
-            r2 = self.session.get(f"{self.base_url}/presence/v1/presences", headers=local_headers, verify=False)
-            if r2.status_code == 200:
-                p2 = r2.json().get("presences", [])
-                # Mevcut map'e ekle veya güncelle
-                for p in p2:
-                    puuid = p.get("puuid")
-                    g_name = p.get("game_name")
-                    g_tag = p.get("game_tag")
-                    p_name = None
-                    if g_name and g_tag:
-                        p_name = f"{g_name}#{g_tag}"
-                        if puuid and (puuid not in self._name_cache or self._name_cache[puuid] in ["Bilinmiyor", "#", "?#?", "None#None", "Unknown", ""]):
-                            self._name_cache[puuid] = p_name
 
-                    private_b64 = p.get("private")
-                    if puuid and private_b64 and puuid not in presence_map:
-                        try:
-                            decoded = json.loads(base64.b64decode(private_b64).decode())
-                            rank = decoded.get("competitiveTier", decoded.get("rankedTier", 0))
-                            party_id = decoded.get("partyId") or decoded.get("partyID") or decoded.get("party_id")
-                            if not party_id and "matchPresenceData" in decoded:
-                                party_id = decoded["matchPresenceData"].get("partyId")
-                            
-                            presence_map[puuid] = {
-                                "name": p_name,
-                                "rank": rank,
-                                "level": decoded.get("accountLevel", 0),
-                                "party_id": party_id
-                            }
-                        except: continue
-                    elif puuid and p_name and puuid in presence_map and not presence_map[puuid].get("name"):
-                        presence_map[puuid]["name"] = p_name
+            # (Eski /presence/v1/presences 404 verdiği için optimize edilerek kaldırıldı)
 
             return presence_map
         except:
-            return {}
+            return presence_map
 
     def get_live_match_score(self, coregame_match_id=None):
         """Yerel Riot Client presence verisinden canlı maç skorunu, haritayı ve oyun modunu çek"""
@@ -2863,87 +3024,222 @@ class Locker:
             pass
         return result
 
+    def _detect_parties_from_history(self, puuids):
+        """Kendi takımımızdaki oyuncuların son maç geçmişlerini çapraz eşleştirerek premade grupları tespit eder"""
+        if not puuids or len(puuids) <= 1:
+            return {}
+        
+        puuids = [str(p).strip() for p in puuids if p]
+        
+        def fetch_hist_matches(p):
+            try:
+                h_url = f"https://pd.{self.shard}.a.pvp.net/match-history/v1/history/{p}?startIndex=0&endIndex=10"
+                hr = self.session.get(h_url, headers=self.get_headers(), verify=False, timeout=2.5)
+                if hr.status_code == 200:
+                    hist = hr.json().get("History", [])
+                    return p, [h.get("MatchID") for h in hist if h.get("MatchID")]
+            except Exception:
+                pass
+            return p, []
+
+        with ThreadPoolExecutor(max_workers=min(5, len(puuids))) as ex:
+            player_histories = dict(ex.map(fetch_hist_matches, puuids))
+
+        shared_match_map = {}
+        for p, m_list in player_histories.items():
+            for mid in m_list:
+                shared_match_map.setdefault(mid, set()).add(p)
+
+        cand_matches = {mid: p_set for mid, p_set in shared_match_map.items() if len(p_set) > 1}
+        if not cand_matches:
+            return {p: "" for p in puuids}
+
+        def fetch_match_details_json(mid):
+            try:
+                det_url = f"https://pd.{self.shard}.a.pvp.net/match-details/v1/matches/{mid}"
+                dr = self.session.get(det_url, headers=self.get_headers(), verify=False, timeout=2.5)
+                if dr.status_code == 200:
+                    return mid, dr.json()
+            except Exception:
+                pass
+            return mid, None
+
+        with ThreadPoolExecutor(max_workers=min(8, len(cand_matches))) as ex:
+            det_results = dict(ex.map(fetch_match_details_json, list(cand_matches.keys())))
+
+        parent = {p: p for p in puuids}
+        def find(x):
+            if parent[x] != x:
+                parent[x] = find(parent[x])
+            return parent[x]
+        def union(x, y):
+            rx, ry = find(x), find(y)
+            if rx != ry:
+                parent[rx] = ry
+
+        for mid, djson in det_results.items():
+            if not djson:
+                continue
+            for pl in djson.get("players", []):
+                sub = pl.get("subject")
+                lvl = pl.get("accountLevel", 0)
+                if sub and lvl > 0:
+                    if not hasattr(self, "_level_cache"): self._level_cache = {}
+                    self._level_cache[f"lvl_{sub}"] = lvl
+
+            match_parties = {}
+            for pl in djson.get("players", []):
+                sub = pl.get("subject")
+                pid = pl.get("partyId")
+                if sub and pid and pid != "00000000-0000-0000-0000-000000000000":
+                    match_parties.setdefault(pid, []).append(sub)
+
+            for pid, mems in match_parties.items():
+                in_curr = [m for m in mems if m in parent]
+                if len(in_curr) > 1:
+                    first = in_curr[0]
+                    for other in in_curr[1:]:
+                        union(first, other)
+
+        party_mapping = {}
+        grouped = {}
+        for p in puuids:
+            r = find(p)
+            grouped.setdefault(r, []).append(p)
+
+        for root, mems in grouped.items():
+            if len(mems) > 1:
+                group_pid = f"history_group_{root[:8]}"
+                for m in mems:
+                    party_mapping[m] = group_pid
+            else:
+                party_mapping[mems[0]] = ""
+
+        return party_mapping
+
     def get_all_players(self, match_id, match_type="pregame"):
-        """Maçtaki tüm oyuncuları al (pregame veya coregame)"""
+        """Maçtaki tüm oyuncuları ve kendi takım arkadaşlarımızın parti (grup) bilgilerini al"""
         if match_type == "pregame":
             details = self.get_match_details(match_id)
-            ally_key = "AllyTeam"
-            enemy_key = "EnemyTeam"
-            players_key = "Players"
+            if not details:
+                return None, None, None, None
+            ally_team = details.get("AllyTeam", {})
+            ally_list = ally_team.get("Players", [])
+            enemy_team = details.get("EnemyTeam", {}) if "EnemyTeam" in details else {}
+            enemy_list = enemy_team.get("Players", []) if enemy_team else []
         else:
             details = self.get_coregame_details(match_id)
-            ally_key = "Players"  # Coregame farklı format kullanıyor
-            enemy_key = None
-            players_key = None
-        
-        if not details:
-            return None, None, None, None
-        
-        ally_players = []
-        enemy_players = []
-        party_colors = {}
-        party_counts = {} # v24.1: Crucial fix for NameError
-        color_index = 0
-        # CMD uyumlu renkli etiketler - numaralı party gösterimi
-        colors = [
-            "[bold red]P1[/bold red]",
-            "[bold green]P2[/bold green]", 
-            "[bold blue]P3[/bold blue]",
-            "[bold yellow]P4[/bold yellow]",
-            "[bold magenta]P5[/bold magenta]",
-            "[bold cyan]P6[/bold cyan]"
-        ]
-        
-        presence_data = self.get_parties_from_presence()
-        
-        target_players = []
-        if match_type == "pregame":
-            ally_team = details.get(ally_key, {})
-            for p in ally_team.get(players_key, []): target_players.append(p)
-            if enemy_key:
-                enemy_team = details.get(enemy_key, {})
-                if enemy_team:
-                    for p in enemy_team.get(players_key, []): target_players.append(p)
-        else:
-            target_players = details.get("Players", [])
+            if not details:
+                return None, None, None, None
+            all_players_raw = details.get("Players", [])
+            my_team = None
+            for player in all_players_raw:
+                p_sub = player.get("Subject") or player.get("subject") or player.get("puuid")
+                if p_sub == self.puuid:
+                    my_team = player.get("TeamID") or player.get("teamId")
+                    break
+            
+            ally_list = []
+            enemy_list = []
+            for player in all_players_raw:
+                t_id = player.get("TeamID") or player.get("teamId")
+                if my_team and t_id == my_team:
+                    ally_list.append(player)
+                elif not my_team and (player.get("Subject") or player.get("subject") or player.get("puuid")) == self.puuid:
+                    ally_list.append(player)
+                else:
+                    enemy_list.append(player)
 
-        # DEBUG: Chat Conversations (Party Chat Bulma)
+        ally_puuids = [str(p.get("Subject") or p.get("subject") or p.get("puuid") or "").strip() for p in ally_list]
+        ally_puuids = [p for p in ally_puuids if p]
+        
+        enemy_puuids = [str(p.get("Subject") or p.get("subject") or p.get("puuid") or "").strip() for p in enemy_list]
+        enemy_puuids = [p for p in enemy_puuids if p]
+        
+        all_puuids = ally_puuids + enemy_puuids
+
+        # 1. Aşama: Kullanıcının Kendi Partisi (GLZ Party Service - %100 Kesinlik)
+        user_party_id = None
+        user_party_members = set()
         try:
-            r = self.session.get(f"{self.base_url}/chat/v6/conversations", headers=self.headers, verify=False)
+            p_self_url = f"https://glz-{self.shard}-1.{self.shard}.a.pvp.net/parties/v1/players/{self.puuid}"
+            r_pself = self.session.get(p_self_url, headers=self.get_headers(), verify=False, timeout=2)
+            if r_pself.status_code == 200:
+                cur_pid = r_pself.json().get("CurrentPartyID")
+                if cur_pid:
+                    p_det_url = f"https://glz-{self.shard}-1.{self.shard}.a.pvp.net/parties/v1/parties/{cur_pid}"
+                    r_pdet = self.session.get(p_det_url, headers=self.get_headers(), verify=False, timeout=2)
+                    if r_pdet.status_code == 200:
+                        mems = r_pdet.json().get("Members", [])
+                        if len(mems) > 1:
+                            user_party_id = cur_pid
+                            for m in mems:
+                                m_sub = m.get("Subject")
+                                if m_sub:
+                                    user_party_members.add(m_sub)
+        except Exception:
+            pass
+
+        # 2. Aşama: Yerel Chat & Presences Parti Tespiti
+        presence_data = self.get_parties_from_presence()
+        try:
+            r = self.session.get(f"{self.base_url}/chat/v6/conversations/ares-parties", headers=self.headers, verify=False, timeout=1.5)
             if r.status_code == 200:
-                convs = r.json().get("conversations", [])
-                for c in convs:
-                    ctype = c.get("type")
-                    cmembers = [m.get("puuid") for m in c.get("members", [])]
-                    
-                    if (ctype == "group" or ctype == "party") and len(cmembers) > 1:
-                            found_pid = c.get("id")
-                            for m_puuid in cmembers:
-                                if m_puuid not in presence_data: presence_data[m_puuid] = {"party_id": found_pid, "rank": 0}
-                                else: presence_data[m_puuid]["party_id"] = found_pid
-        except: pass
+                p_convs = r.json().get("conversations", [])
+                for c in p_convs:
+                    p_cid = c.get("cid") or c.get("id") or "party-chat"
+                    raw_members = c.get("members", [])
+                    cmembers = []
+                    for m in raw_members:
+                        if isinstance(m, dict):
+                            puuid_c = m.get("puuid") or str(m.get("id", "")).split("@")[0]
+                        elif isinstance(m, str):
+                            puuid_c = m.split("@")[0]
+                        else:
+                            puuid_c = None
+                        if puuid_c:
+                            cmembers.append(puuid_c)
+                    if len(cmembers) > 1:
+                        for m_puuid in cmembers:
+                            if m_puuid not in presence_data:
+                                presence_data[m_puuid] = {"party_id": p_cid, "rank": 0}
+                            else:
+                                presence_data[m_puuid]["party_id"] = p_cid
+        except Exception:
+            pass
 
-        for p in target_players:
-            puuid = p.get("Subject", "")
-            pid = p.get("PartyID", "")
-            if (not pid or pid == "00000000-0000-0000-0000-000000000000") and puuid in presence_data:
-                pid = presence_data[puuid].get("party_id")
-            
-            if pid and pid != "00000000-0000-0000-0000-000000000000":
-                party_counts[pid] = party_counts.get(pid, 0) + 1
+        # 3. Aşama: Sadece Kendi Takım Arkadaşlarımız İçin Geçmiş Maç Çapraz Eşleştirmesi
+        history_parties = {}
+        if len(ally_puuids) > 1:
+            if not hasattr(self, "_match_parties_cache"):
+                self._match_parties_cache = {}
+            cached = self._match_parties_cache.get(match_id)
+            if cached and all(p in cached for p in ally_puuids):
+                history_parties = cached
+            else:
+                history_parties = self._detect_parties_from_history(ally_puuids)
+                self._match_parties_cache[match_id] = history_parties
 
-        # 2. Aşama: İsimleri toplu çek
-        puuids = [p.get("Subject") for p in target_players if p.get("Subject")]
-        names_map = self.get_player_names(puuids)
+        # 4. Aşama: İsimleri toplu çek
+        names_map = self.get_player_names(all_puuids)
 
-        def process_player(player):
-            nonlocal color_index
-            puuid = player.get("Subject", "")
+        def process_player(player, is_ally=True):
+            puuid = player.get("Subject") or player.get("subject") or player.get("puuid") or ""
             name = names_map.get(puuid, "Bilinmiyor")
-            
-            # 1. Öncelik: Presence verisi
             p_info = presence_data.get(puuid, {})
-            party_id = p_info.get("party_id", player.get("PartyID", ""))
+
+            # Parti tespiti SADECE kendi takımımız için yapılır
+            raw_party_id = ""
+            if is_ally:
+                if puuid in user_party_members and user_party_id:
+                    raw_party_id = user_party_id
+                elif history_parties.get(puuid):
+                    raw_party_id = history_parties[puuid]
+                else:
+                    raw_party_id = p_info.get("party_id", "")
+                if raw_party_id == "00000000-0000-0000-0000-000000000000":
+                    raw_party_id = ""
+
             presence_rank_tier = p_info.get("rank", 0)
             presence_kp = p_info.get("kp", 0)
             
@@ -2955,142 +3251,147 @@ class Locker:
                 elif puuid in self._name_cache and self._name_cache[puuid] not in invalid_names:
                     name = self._name_cache[puuid]
             
-            # Rank ve KP bilgisi (Self caching)
+            # Rank, KP ve Peak Rank (Kariyer Zirvesi) bilgisi
             kp = 0
-            if puuid in self._rank_cache:
-                rank = self._rank_cache[puuid]
-                presence_rank_tier = self._tier_cache.get(puuid, 0)
-                kp = self._kp_cache.get(puuid, 0)
-            elif presence_rank_tier > 0:
-                rank = RANK_NAMES.get(presence_rank_tier, "Unranked")
-                kp = presence_kp
-                self._rank_cache[puuid] = rank
-                self._tier_cache[puuid] = presence_rank_tier
-                self._kp_cache[puuid] = kp
-            else:
+            if not hasattr(self, "_peak_tier_cache"):
+                self._peak_tier_cache = {}
+
+            if puuid not in self._peak_tier_cache or puuid not in self._rank_cache:
                 rank = self.get_player_rank(puuid)
                 if rank == "[dim]Bilinmiyor[/dim]" and presence_rank_tier is not None:
                     rank = RANK_NAMES.get(presence_rank_tier, "Unranked")
                 self._rank_cache[puuid] = rank
+                presence_rank_tier = self._tier_cache.get(puuid, presence_rank_tier or 0)
+                kp = self._kp_cache.get(puuid, 0)
+            else:
+                rank = self._rank_cache[puuid]
                 presence_rank_tier = self._tier_cache.get(puuid, 0)
                 kp = self._kp_cache.get(puuid, 0)
+
+            peak_tier = self._peak_tier_cache.get(puuid, presence_rank_tier or 0)
+            if peak_tier < (presence_rank_tier or 0):
+                peak_tier = presence_rank_tier or 0
+            peak_rank = RANK_NAMES.get(peak_tier, "Unranked")
             
-            # Seviye bilgisi
+            # Seviye ve Gizlilik tespiti
+            p_ident = player.get("PlayerIdentity", {})
+            is_incognito = bool(p_ident.get("Incognito") or player.get("Incognito"))
+            hide_level = bool(p_ident.get("HideAccountLevel") or player.get("HideAccountLevel"))
+
             agent_uuid = player.get("CharacterID", "")
             agent_name = self.uuid_to_agent_name(agent_uuid)
             is_me = puuid == self.puuid
-            team_id = player.get("TeamID", "")
+            team_id = player.get("TeamID") or player.get("teamId") or ""
             
             is_locked = player.get("CharacterSelectionState", "") == "locked"
             if match_type == "coregame":
                 is_locked = True
 
-            level = player.get("PlayerIdentity", {}).get("AccountLevel", 0)
+            level = p_ident.get("AccountLevel", 0)
             if not level or level == 0:
                 level = player.get("AccountLevel", 0)
-            
-            # 3. Yol: Presence Fallback
             if (not level or level == 0) and p_info.get("level", 0) > 0:
                 level = p_info.get("level")
-
-            # 4. Yol: Match History Bypass (Gizli levelleri ve gizli isimleri açmak için)
-            need_level = not level or level == 0
-            need_name = not name or name in invalid_names
             cache_key = f"lvl_{puuid}"
+            if (not level or level == 0) and hasattr(self, "_level_cache"):
+                level = self._level_cache.get(puuid) or self._level_cache.get(cache_key) or 0
 
-            if need_level and hasattr(self, "_level_cache") and cache_key in self._level_cache:
-                level = self._level_cache[cache_key]
-                need_level = not level or level == 0
+            if level and level > 0:
+                if not hasattr(self, "_level_cache"):
+                    self._level_cache = {}
+                self._level_cache[puuid] = level
+                self._level_cache[cache_key] = level
 
-            if need_level or need_name:
-                try:
-                    # Çok hızlı bir kontrol: Maç geçmişine bak
-                    url = f"https://pd.{self.shard}.a.pvp.net/match-history/v1/history/{puuid}?startIndex=0&endIndex=1"
-                    r = self.session.get(url, headers=self.get_headers(), verify=False)
-                    if r.status_code == 200:
-                        history = r.json().get("History", [])
-                        if history:
-                            match_id = history[0].get("MatchID")
-                            # Maç detaylarında seviye ve gerçek Riot ID gizlenmez (Platform sızıntısı)
-                            details_url = f"https://pd.{self.shard}.a.pvp.net/match-details/v1/matches/{match_id}"
-                            r2 = self.session.get(details_url, headers=self.get_headers(), verify=False)
-                            if r2.status_code == 200:
-                                m_data = r2.json()
-                                for m_player in m_data.get("players", []):
-                                    if m_player.get("subject") == puuid:
-                                        if need_level:
-                                            lvl = m_player.get("accountLevel", 0)
-                                            if lvl > 0:
-                                                level = lvl
-                                                if not hasattr(self, "_level_cache"): self._level_cache = {}
-                                                self._level_cache[cache_key] = level
-                                        if need_name:
-                                            m_gname = m_player.get("gameName")
-                                            m_tag = m_player.get("tagLine")
-                                            if m_gname and m_tag:
-                                                name = f"{m_gname}#{m_tag}"
-                                                self._name_cache[puuid] = name
-                                        break
-                except: pass
+            if (not name or name in invalid_names) and puuid in self._name_cache and self._name_cache[puuid] not in invalid_names:
+                name = self._name_cache[puuid]
 
-            # Son kontrol: Hala isim bulunamadıysa (Yayıncı Modu / Incognito vb.)
-            if not name or name in invalid_names:
+            is_hidden_name = False
+            if is_incognito and not is_me:
                 name = "Gizli"
+                is_hidden_name = True
+            elif not name or name in invalid_names or name.endswith("#???") or name.startswith("#"):
+                name = "Gizli"
+                is_hidden_name = True
+
+            name_obj = {
+                "tr": "Gizli" if is_hidden_name else name,
+                "en": "Hidden" if is_hidden_name else name
+            }
 
             return {
                 "puuid": puuid,
                 "name": name,
+                "name_obj": name_obj,
+                "is_hidden_name": is_hidden_name,
                 "agent": agent_name,
                 "agent_uuid": agent_uuid,
                 "locked": is_locked,
                 "level": str(level) if level else "0",
                 "rank": rank,
                 "kp": kp,
-                "tier": presence_rank_tier, # Added Tier ID for image lookup
+                "tier": presence_rank_tier,
+                "peak_tier": peak_tier,
+                "peak_rank": peak_rank,
                 "is_me": is_me,
                 "team_id": team_id,
-                "party_id": party_id
+                "party_id": raw_party_id,
+                "is_incognito": is_incognito,
+                "hide_level": hide_level
             }
         
-        if match_type == "pregame":
-            # Pregame format
-            ally_team = details.get(ally_key, {})
-            ally_list = ally_team.get(players_key, [])
-            enemy_team = details.get(enemy_key, {}) if enemy_key else {}
-            enemy_list = enemy_team.get(players_key, []) if enemy_team else []
-            
-            # Eşzamanlı (Concurrent) oyuncu analizi
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                ally_futures = [executor.submit(process_player, p) for p in ally_list]
-                enemy_futures = [executor.submit(process_player, p) for p in enemy_list]
-                ally_players = [f.result() for f in ally_futures]
-                enemy_players = [f.result() for f in enemy_futures]
-        else:
-            # Coregame format - tüm oyuncular tek listede
-            all_players = details.get("Players", [])
-            my_team = None
-            
-            # Önce kendi takımımızı bul
-            for player in all_players:
-                if player.get("Subject") == self.puuid:
-                    my_team = player.get("TeamID")
-                    break
-            
-            # Eşzamanlı (Concurrent) oyuncu analizi
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                processed_players = list(executor.map(process_player, all_players))
-            
-            for p_data in processed_players:
-                if p_data.get("team_id") == my_team:
-                    ally_players.append(p_data)
-                else:
-                    enemy_players.append(p_data)
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            ally_futures = [executor.submit(process_player, p, True) for p in ally_list]
+            enemy_futures = [executor.submit(process_player, p, False) for p in enemy_list]
+            ally_players = [f.result() for f in ally_futures]
+            enemy_players = [f.result() for f in enemy_futures]
+
+        # 5. Aşama: Sadece Kendi Takımımız İçin Premade Gruplaması
+        party_members_map = {}
+        for p_obj in ally_players:
+            pid = p_obj.get("party_id")
+            if pid and pid != "00000000-0000-0000-0000-000000000000":
+                party_members_map.setdefault(pid, []).append(p_obj)
+
+        party_idx = 1
+        party_colors_palette = ['#8b5cf6', '#06b6d4', '#f59e0b', '#ec4899', '#10b981', '#3b82f6']
         
+        sorted_parties = sorted(
+            party_members_map.items(),
+            key=lambda item: (0 if any(m.get("is_me") for m in item[1]) else 1, -len(item[1]))
+        )
+
+        for pid, members in sorted_parties:
+            if len(members) > 1:
+                p_label = f"GRP {party_idx}"
+                p_color = party_colors_palette[(party_idx - 1) % len(party_colors_palette)]
+                for m in members:
+                    m["party_label"] = p_label
+                    m["party_color"] = p_color
+                    m["is_premade"] = True
+                party_idx += 1
+            else:
+                for m in members:
+                    m["party_label"] = "SOLO"
+                    m["party_color"] = ""
+                    m["is_premade"] = False
+
+        for p_obj in ally_players:
+            if "party_label" not in p_obj:
+                p_obj["party_label"] = "SOLO"
+                p_obj["party_color"] = ""
+                p_obj["is_premade"] = False
+
+        # Karşı takım için grup etiketleri tamamen boş ve devre dışıdır
+        for p_obj in enemy_players:
+            p_obj["party_label"] = ""
+            p_obj["party_color"] = ""
+            p_obj["is_premade"] = False
+
         map_id = details.get("MapID", "Bilinmiyor")
         map_name = VAL_MAPS.get(map_id, map_id.split('/')[-1] if '/' in map_id else "Bilinmiyor")
         
-        return ally_players, enemy_players, {}, map_name
-    
+        return ally_players, enemy_players, party_members_map, map_name
+
     def get_match_players(self, match_id):
         """Maçtaki oyuncuları ve party bilgilerini al"""
         details = self.get_match_details(match_id)
@@ -3187,17 +3488,25 @@ def show_agents():
     def get_role_table(agents, color):
         t = Table(box=box.SIMPLE, show_header=False, padding=(0, 2))
         for agent in agents:
-            idx = list(AGENTS.keys()).index(agent) + 1
-            t.add_row(f"[{color}]{idx:2}[/]", f"[white]{agent}[/]")
+            try:
+                idx = list(AGENTS.keys()).index(agent) + 1
+                t.add_row(f"[{color}]{idx:2}[/]", f"[white]{agent}[/]")
+            except (ValueError, IndexError):
+                pass
         return t
+
+    duelists = [name for name, d in AGENT_DATA.items() if d.get("role") in ["Düellocu", "Duelist"]]
+    sentinels = [name for name, d in AGENT_DATA.items() if d.get("role") in ["Gözcü", "Sentinel"]]
+    initiators = [name for name, d in AGENT_DATA.items() if d.get("role") in ["Öncü", "Initiator"]]
+    controllers = [name for name, d in AGENT_DATA.items() if d.get("role") in ["Kontrol Uzmanı", "Controller", "Kontrol"]]
 
     grid = Table.grid(expand=True)
     grid.add_column(ratio=1); grid.add_column(ratio=1); grid.add_column(ratio=1); grid.add_column(ratio=1)
     grid.add_row(
-        Panel(get_role_table(DUELISTS, "red"), title="[bold red]DÜELLOCU[/]", border_style="dim", box=box.SQUARE),
-        Panel(get_role_table(SENTINELS, "green"), title="[bold green]GÖZCÜ[/]", border_style="dim", box=box.SQUARE),
-        Panel(get_role_table(INITIATORS, "blue"), title="[bold blue]ÖNCÜ[/]", border_style="dim", box=box.SQUARE),
-        Panel(get_role_table(CONTROLLERS, "magenta"), title="[bold magenta]KONTROL[/]", border_style="dim", box=box.SQUARE)
+        Panel(get_role_table(duelists, "red"), title="[bold red]DÜELLOCU[/]", border_style="dim", box=box.SQUARE),
+        Panel(get_role_table(sentinels, "green"), title="[bold green]GÖZCÜ[/]", border_style="dim", box=box.SQUARE),
+        Panel(get_role_table(initiators, "blue"), title="[bold blue]ÖNCÜ[/]", border_style="dim", box=box.SQUARE),
+        Panel(get_role_table(controllers, "magenta"), title="[bold magenta]KONTROL[/]", border_style="dim", box=box.SQUARE)
     )
     console.print(grid)
 
@@ -3260,8 +3569,10 @@ def run_live_info_loop(locker, agent_name=None):
             if players:
                 # Ally Table
                 ally_table = Table(title="[bold green]TAKIM ARKADAŞLARIN[/bold green]", box=box.SQUARE, border_style="green")
+                ally_table.add_column("GRUP", justify="center", width=8)
                 ally_table.add_column("LVL", justify="center", width=5)
                 ally_table.add_column("RANK", justify="center", min_width=12)
+                ally_table.add_column("PEAK", justify="center", min_width=12)
                 ally_table.add_column("Oyuncu", justify="left", min_width=20)
                 ally_table.add_column("Ajan", justify="center", min_width=10)
                 ally_table.add_column("Durum", justify="center", width=8)
@@ -3271,7 +3582,31 @@ def run_live_info_loop(locker, agent_name=None):
                     agent_disp = p["agent"] if p["agent"] != "Seçiyor..." else "[dim]Seçiyor...[/dim]"
                     if p["locked"] and agent_disp == "[dim]Seçiyor...[/dim]": agent_disp = "[dim italic]Ajan Gizli[/dim italic]"
                     status = "[green]OK[/green]" if p["locked"] else "[yellow]...[/yellow]"
-                    ally_table.add_row(p["level"], p["rank"], f"{name_style}{p['name']}[/]", agent_disp, status)
+                    
+                    if p.get("is_premade") and p.get("party_label") and p.get("party_label") != "SOLO":
+                        party_disp = f"[bold magenta]{p.get('party_label')}[/bold magenta]"
+                    else:
+                        party_disp = "[dim]SOLO[/dim]"
+                    
+                    peak_disp = p.get("peak_rank", "Unranked")
+                    if peak_disp not in ["Unranked", "Bilinmiyor", "-"]:
+                        if p.get("peak_tier", 0) > p.get("tier", 0):
+                            peak_disp = f"[bold yellow]{peak_disp}[/bold yellow]"
+                        else:
+                            peak_disp = f"[gold1]{peak_disp}[/gold1]"
+                    else:
+                        peak_disp = "[dim]-[/dim]"
+                    
+                    if p.get("name") in ["Gizli", "Hidden"] or p.get("is_hidden_name") or (p.get("is_incognito") and not p.get("is_me")):
+                        name_disp = "[dim italic]Gizli[/dim italic]"
+                    else:
+                        name_disp = f"{name_style}{p['name']}[/]"
+
+                    lvl_disp = p.get("level", "0")
+                    if not lvl_disp or lvl_disp in ["0", 0] or p.get("hide_level"):
+                        lvl_disp = "[dim]-[/dim]"
+
+                    ally_table.add_row(party_disp, lvl_disp, p["rank"], peak_disp, name_disp, agent_disp, status)
                 console.print(ally_table)
                 
                 # Enemy Table
@@ -3280,6 +3615,7 @@ def run_live_info_loop(locker, agent_name=None):
                     enemy_table = Table(title="[bold red]KARŞI TAKIM[/bold red]", box=box.SQUARE, border_style="red")
                     enemy_table.add_column("LVL", justify="center", width=5)
                     enemy_table.add_column("RANK", justify="center", min_width=12)
+                    enemy_table.add_column("PEAK", justify="center", min_width=12)
                     enemy_table.add_column("Oyuncu", justify="left", min_width=20)
                     enemy_table.add_column("Ajan", justify="center", min_width=10)
                     enemy_table.add_column("Durum", justify="center", width=8)
@@ -3288,7 +3624,26 @@ def run_live_info_loop(locker, agent_name=None):
                         agent_disp = p["agent"] if p["agent"] != "Seçiyor..." else "[dim]Seçiyor...[/dim]"
                         if (p["locked"] or game_started) and agent_disp == "[dim]Seçiyor...[/dim]": agent_disp = "[dim italic]Ajan Gizli[/dim italic]"
                         status = "[green]OK[/green]" if (p["locked"] or game_started) else "[yellow]...[/yellow]"
-                        enemy_table.add_row(p["level"], p["rank"], f"[white]{p['name']}[/]", agent_disp, status)
+                        
+                        peak_disp = p.get("peak_rank", "Unranked")
+                        if peak_disp not in ["Unranked", "Bilinmiyor", "-"]:
+                            if p.get("peak_tier", 0) > p.get("tier", 0):
+                                peak_disp = f"[bold yellow]{peak_disp}[/bold yellow]"
+                            else:
+                                peak_disp = f"[gold1]{peak_disp}[/gold1]"
+                        else:
+                            peak_disp = "[dim]-[/dim]"
+                        
+                        if p.get("name") in ["Gizli", "Hidden"] or p.get("is_hidden_name") or (p.get("is_incognito") and not p.get("is_me")):
+                            e_name_disp = "[dim italic]Gizli[/dim italic]"
+                        else:
+                            e_name_disp = f"[white]{p['name']}[/]"
+
+                        e_lvl_disp = p.get("level", "0")
+                        if not e_lvl_disp or e_lvl_disp in ["0", 0] or p.get("hide_level"):
+                            e_lvl_disp = "[dim]-[/dim]"
+
+                        enemy_table.add_row(e_lvl_disp, p["rank"], peak_disp, e_name_disp, agent_disp, status)
                     console.print(enemy_table)
             
             if game_started:
@@ -3487,12 +3842,16 @@ def skin_intel_mode(locker):
                                     
                                     if "Sockets" in gun_data and skin_socket_uuid in gun_data["Sockets"]:
                                         socket_id = gun_data["Sockets"][skin_socket_uuid]["Item"]["ID"]
-                                        skin_name = SKIN_CACHE.get(socket_id, "Standart")
+                                        skin_data = SKIN_CACHE.get(socket_id, "Standart")
+                                        if isinstance(skin_data, dict):
+                                            skin_name = skin_data.get("tr") or skin_data.get("name") or skin_data.get("en") or "Standart"
+                                        else:
+                                            skin_name = str(skin_data)
                                 except:
                                     pass
                                 
                                 # İsim kısaltma
-                                skin_name = skin_name.replace(" Standart", "")
+                                skin_name = str(skin_name).replace(" Standart", "")
                                 
                                 if target_weapons[gun_id] == "Vandal": vandal = skin_name
                                 elif target_weapons[gun_id] == "Phantom": phantom = skin_name
@@ -3638,19 +3997,36 @@ def get_data():
                         if a_name != "SELECTING" and a_name != "UNKNOWN":
                             a_obj = {"tr": a_name, "en": a_name}
                         
+                        peak_tier_id = player.get("peak_tier", 0) or tier_id
+                        try: peak_tier_id = int(peak_tier_id)
+                        except: peak_tier_id = tier_id
+                        if peak_tier_id < tier_id:
+                            peak_tier_id = tier_id
+
                         p_data = {
                             "puuid": player.get("puuid"),
                             "rank": player.get("rank"),
                             "rank_obj": {"tr": RANK_NAMES.get(tier_id, "Bilinmiyor"), "en": RANK_NAMES_EN.get(tier_id, "Unknown")},
                             "kp": player.get("kp", 0),
+                            "peak_tier": peak_tier_id,
+                            "peak_rank": RANK_NAMES.get(peak_tier_id, "Unranked"),
+                            "peak_rank_obj": {"tr": RANK_NAMES.get(peak_tier_id, "Bilinmiyor"), "en": RANK_NAMES_EN.get(peak_tier_id, "Unknown")},
+                            "peak_rank_image": RANK_ASSETS.get(peak_tier_id, ""),
                             "name": player.get("name"), 
+                            "name_obj": player.get("name_obj") or {"tr": player.get("name", "Gizli"), "en": "Hidden" if (player.get("name") in ["Gizli", "Unknown", "Bilinmiyor"] or player.get("is_incognito")) else player.get("name", "Hidden")},
+                            "is_hidden_name": player.get("is_hidden_name", False) or player.get("name") in ["Gizli", "Unknown", "Bilinmiyor"],
                             "agent_obj": a_obj,
                             "agent": a_name,
                             "agent_uuid": player.get("agent_uuid"), "level": player.get("level"),
                             "agent_image": AGENT_ASSETS.get(a_name, ""),
                             "rank_image": RANK_ASSETS.get(tier_id, ""),
                             "is_me": player.get("is_me"), "locked": player.get("locked"),
-                            "party_id": player.get("party_id"),
+                            "party_id": player.get("party_id", ""),
+                            "party_label": player.get("party_label", "SOLO"),
+                            "party_color": player.get("party_color", ""),
+                            "is_premade": player.get("is_premade", False),
+                            "is_incognito": player.get("is_incognito", False),
+                            "hide_level": player.get("hide_level", False),
                             "vandal": "-", "vandal_img": "", "phantom": "-", "phantom_img": "",
                             "ghost": "-", "ghost_img": "", "op": "-", "op_img": "", "sheriff": "-", "sheriff_img": "",
                             "all_weapons": [],
@@ -3699,7 +4075,9 @@ def get_data():
                                     sid = s_val.get("Item", {}).get("ID", "").lower()
                                     if sid in SKIN_CACHE:
                                         sc = SKIN_CACHE[sid]
-                                        f_skin = {"tr": sc["tr"], "en": sc["en"], "icon": sc["icon"]}
+                                        tr_name = sc.get("tr") or sc.get("name") or "Standart"
+                                        en_name = sc.get("en") or sc.get("name") or "Standard"
+                                        f_skin = {"tr": tr_name, "en": en_name, "icon": sc.get("icon", "")}
                                         if not sid.startswith(matched_prefix):
                                             is_prem = True
                                         break
@@ -3709,7 +4087,9 @@ def get_data():
                                     sid = g_data["SkinID"].lower()
                                     if sid in SKIN_CACHE:
                                         sc = SKIN_CACHE[sid]
-                                        f_skin = {"tr": sc["tr"], "en": sc["en"], "icon": sc["icon"]}
+                                        tr_name = sc.get("tr") or sc.get("name") or "Standart"
+                                        en_name = sc.get("en") or sc.get("name") or "Standard"
+                                        f_skin = {"tr": tr_name, "en": en_name, "icon": sc.get("icon", "")}
                                         if not sid.startswith(matched_prefix):
                                             is_prem = True
 
@@ -3795,29 +4175,46 @@ def get_agents():
     # Rolleri sıralı döndür (Opsiyonel)
     return jsonify(grouped)
 
+TARGET_LOCK_AGENT = None
+LOCK_WORKER_RUNNING = False
+LOCK_MUTEX = threading.Lock()
+
+def _auto_lock_worker():
+    global LOCK_WORKER_RUNNING, TARGET_LOCK_AGENT
+    console.print("[bold green]WEB: Otomatik ajan kilitleme servisi devrede.[/bold green]")
+    while LOCK_WORKER_RUNNING:
+        try:
+            target = TARGET_LOCK_AGENT
+            if not target or not web_locker:
+                time.sleep(0.5)
+                continue
+
+            pregame = web_locker.get_pregame()
+            if pregame:
+                if target in AGENTS:
+                    agent_uuid = AGENTS[target]
+                    web_locker.select_agent(pregame, agent_uuid)
+                    success = web_locker.lock_agent(pregame, agent_uuid)
+                    if success:
+                        console.print(f"[bold green]WEB: {target} BAŞARIYLA KİLİTLENDİ![/bold green]")
+                        TARGET_LOCK_AGENT = None
+                        time.sleep(4)
+            time.sleep(0.3)
+        except Exception:
+            time.sleep(1)
+
 @app.route('/api/lock/<agent_name>')
 def lock_agent(agent_name):
-    global web_locker
+    global web_locker, TARGET_LOCK_AGENT, LOCK_WORKER_RUNNING
     if not web_locker: return jsonify({"status": "error", "msg": "Not connected"})
     
-    def locker_thread():
-        # Basit bir loop ile maç gelene kadar bekle
-        console.print(f"[bold green]WEB: {agent_name} için otomatik kilit döngüsü başlatıldı...[/]")
-        while True:
-            try:
-                pregame = web_locker.get_pregame()
-                if pregame:
-                    if agent_name in AGENTS:
-                         # Ajanı seç ve kilitle
-                         web_locker.lock_agent(pregame, AGENTS[agent_name])
-                         console.print(f"[bold green]WEB: {agent_name} KİLİTLENDİ![/]")
-                         break # Görev tamamlandı, döngüden çık
-                time.sleep(0.5)
-            except: 
-                time.sleep(1)
-    
-    # Mevcut thread varsa durdurulmalı mı? Şimdilik basitçe yenisini başlatıyoruz.
-    threading.Thread(target=locker_thread, daemon=True).start()
+    TARGET_LOCK_AGENT = agent_name
+    with LOCK_MUTEX:
+        if not LOCK_WORKER_RUNNING:
+            LOCK_WORKER_RUNNING = True
+            threading.Thread(target=_auto_lock_worker, daemon=True).start()
+
+    console.print(f"[bold cyan]WEB: Kilit hedefi güncellendi -> {agent_name}[/bold cyan]")
     return jsonify({"status": "ok", "msg": f"{agent_name} ARANIYOR..."})
 
 def _afk_worker():
@@ -3975,6 +4372,7 @@ def run_web_mode():
     status_table.add_row("DURUM", "[bold green]● ÇEVRİMİÇİ / HAZIR[/bold green]")
     status_table.add_row("WEB ARAYÜZÜ", "[bold underline cyan]http://127.0.0.1:5000[/bold underline cyan]")
     status_table.add_row("VERİTABANI", f"[white]{len(SKIN_CACHE)}[/white] [dim]Silah Skini[/dim]  |  [white]{len(AGENT_ASSETS)}[/white] [dim]Ajan[/dim]")
+    status_table.add_row("DISCORD RPC", "[bold green]● AKTİF (KepsLocker)[/bold green]" if PYPRESENCE_AVAILABLE else "[yellow]○ KAPALI (Kütüphane Eksik)[/yellow]")
     status_table.add_row("MOTOR", "[bold magenta]KEPSLOCK PRO ULTRA-LATENCY[/bold magenta]")
 
     console.print(Align.center(Panel(status_table, title="[bold white]SİSTEM DURUMU[/bold white]", border_style="bright_black", expand=False)))
@@ -3986,7 +4384,8 @@ def run_web_mode():
             try:
                 lockfile = get_lockfile()
                 if lockfile:
-                    if not web_locker or not getattr(web_locker, 'puuid', None):
+                    port_changed = web_locker and getattr(web_locker, 'port', None) != lockfile.get('port')
+                    if not web_locker or not getattr(web_locker, 'puuid', None) or port_changed:
                         temp_locker = Locker(lockfile)
                         if temp_locker.connect():
                             web_locker = temp_locker
@@ -4015,7 +4414,8 @@ def run_web_mode():
                 # Discord Presence Durumunu Belirle
                 details_text = "Valorant InstaLocker"
                 state_text = "Panel Açık // Hazır"
-                large_text = "Valorant InstaLocker PREMIUM v1"
+                large_text = "Valorant InstaLocker PRO"
+                large_img = "https://raw.githubusercontent.com/Keplorions/Valorant-InstaLocker/main/media/logo.png"
 
                 if web_locker:
                     try:
@@ -4068,6 +4468,7 @@ def run_web_mode():
                     details=details_text,
                     state=state_text,
                     start=RPC_START_TIME,
+                    large_image=large_img,
                     large_text=large_text,
                     buttons=buttons
                 )
@@ -4158,6 +4559,7 @@ def main():
                         details="Valorant",
                         state="Görünmez Mod // Çevrimdışı",
                         start=RPC_START_TIME,
+                        large_image="https://raw.githubusercontent.com/Keplorions/Valorant-InstaLocker/main/media/logo.png",
                         large_text="Valorant InstaLocker (Çevrimdışı)"
                     )
                 except: pass
